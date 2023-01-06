@@ -330,6 +330,7 @@
     </Compile>
     <Compile Include="ResourceHandling\*.cs" />
     <Compile Include="GetCompatiblePlatform.cs" />
+    <Compile Include="Join.cs" />
     <Compile Include="SetRidAgnosticValueForProjects.cs" />
     <Compile Include="ResolveComReference.cs" />
     <Compile Include="BuildCacheDisposeWrapper.cs" />
@@ -980,11 +981,9 @@
   </ItemGroup>
 
   <!-- Mimics AddRefAssemblies from MSBuild.csproj -->
-  <Target Name="AddRefAssemblies"
-          DependsOnTargets="ResolveAssemblyReferences"
-          BeforeTargets="AssignTargetPaths">
+  <Target Name="AddRefAssemblies" DependsOnTargets="ResolveAssemblyReferences" BeforeTargets="AssignTargetPaths">
     <ItemGroup>
-      <Content Include="@(NetstandardRefAssemblies)" CopyToOutputDirectory="PreserveNewest" Link="ref\%(Filename)%(Extension)"/>
+      <Content Include="@(NetstandardRefAssemblies)" CopyToOutputDirectory="PreserveNewest" Link="ref\%(Filename)%(Extension)" />
     </ItemGroup>
   </Target>
 
