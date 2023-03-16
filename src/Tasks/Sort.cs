@@ -14,13 +14,14 @@ namespace Microsoft.Build.Tasks
         private IEnumerable<OrderByInstruction> _ordering = Array.Empty<OrderByInstruction>();
 
         /// <summary>
-        /// The items to sort.
+        /// Gets or sets the items to sort.
         /// </summary>
         [Required]
         public ITaskItem[] Items { get; set; } = Array.Empty<ITaskItem>();
 
         /// <summary>
-        /// <para>Optional Order By instructions. Expected syntax:</para>
+        /// <para>Gets or sets optional Order By instructions.</para>
+        /// <para>Expected syntax:</para>
         /// <para>MetadataName[ [c][asc|desc]][;MetadataName[ [c][asc|desc]][...]</para>
         /// <para>Where 'c' is a case-sensitive compare; 'asc' is ascending order; and 'desc' is descending order.</para>
         /// <para>Default is to order by 'Identity', case-insensitive compare, ascending order.</para>
@@ -138,6 +139,7 @@ namespace Microsoft.Build.Tasks
                     return comparisonResult;
                 }
             }
+
             return comparisonResult;
         }
 
