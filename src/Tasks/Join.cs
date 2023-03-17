@@ -54,11 +54,12 @@ namespace Microsoft.Build.Tasks
             return !Log.HasLoggedErrors;
         }
 
-        private bool ValidateMetadataExists(string itemName, ITaskItem[] items, string metadataName)
+        private bool ValidateMetadataExists(string itemName, IEnumerable<ITaskItem> items, string metadataName)
         {
             bool result = items.All(item => item.MetadataNames.Cast<string>().Contains(metadataName));
             if (!result)
             {
+                // TODO: Change from LogError to LogError*FromResources.
                 Log.LogError($"Missing metadata. The {metadataName} metadata must be set on all items in {itemName}.");
             }
 
@@ -85,9 +86,11 @@ namespace Microsoft.Build.Tasks
 
         private ITaskItem MakeResult(ITaskItem outerItem, IEnumerable<ITaskItem> innerItems)
         {
+            bool isInnerEmpty = true;
             var metadataToAdd = new Dictionary<string, List<string>>();
             foreach (var innerItem in innerItems)
             {
+                isInnerEmpty = false;
                 // EnumerateMetadata returns only the 'custom' metadata.
                 foreach (var custom in innerItem.EnumerateMetadata())
                 {
@@ -116,6 +119,9 @@ namespace Microsoft.Build.Tasks
                 }
             }
 
+            // TODO: There seems to be value to an explicit metadata indicating if inner is the empty set, but may need discussion.
+            resultItem.SetMetadata(GroupJoinInnerIsEmptyName, isInnerEmpty.ToString());
+
             return resultItem;
         }
 
@@ -123,5 +129,8 @@ namespace Microsoft.Build.Tasks
         {
             return _hasMetadataExclusions && ExcludeMetadata.Contains(name);
         }
+
+        // TODO: Use a different name for this metadata?
+        private const string GroupJoinInnerIsEmptyName = "GroupJoinInnerIsEmpty";
     }
 }
