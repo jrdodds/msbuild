@@ -706,6 +706,7 @@ namespace Microsoft.Build.CommandLine
                 bool lowPriority = false;
                 string[] inputResultsCaches = null;
                 string outputResultsCache = null;
+                bool question = false;
 
                 GatherAllSwitches(commandLine, out var switchesFromAutoResponseFile, out var switchesNotFromAutoResponseFile, out _);
                 bool buildCanBeInvoked = ProcessCommandLineSwitches(
@@ -741,6 +742,7 @@ namespace Microsoft.Build.CommandLine
                                             ref inputResultsCaches,
                                             ref outputResultsCache,
                                             ref lowPriority,
+                                            ref question,
                                             recursing: false,
 #if FEATURE_GET_COMMANDLINE
                                             commandLine);
@@ -758,10 +760,13 @@ namespace Microsoft.Build.CommandLine
                     // Only display the message if /m isn't provided
                     if (cpuCount == 1 && FileUtilities.IsSolutionFilename(projectFile) && verbosity > LoggerVerbosity.Minimal
                         && switchesNotFromAutoResponseFile[CommandLineSwitches.ParameterizedSwitch.MaxCPUCount].Length == 0
-                        && switchesFromAutoResponseFile[CommandLineSwitches.ParameterizedSwitch.MaxCPUCount].Length == 0)
+                        && switchesFromAutoResponseFile[CommandLineSwitches.ParameterizedSwitch.MaxCPUCount].Length == 0
+                        && preprocessWriter != null
+                        && targetsWriter != null)
                     {
                         Console.WriteLine(ResourceUtilities.GetResourceString("PossiblyOmittedMaxCPUSwitch"));
                     }
+
                     if (preprocessWriter != null && !BuildEnvironmentHelper.Instance.RunningTests)
                     {
                         // Indicate to the engine that it can NOT toss extraneous file content: we want to
@@ -808,6 +813,7 @@ namespace Microsoft.Build.CommandLine
                                     isolateProjects,
                                     graphBuildOptions,
                                     lowPriority,
+                                    question,
                                     inputResultsCaches,
                                     outputResultsCache,
                                     commandLine))
@@ -1121,6 +1127,7 @@ namespace Microsoft.Build.CommandLine
             ProjectIsolationMode isolateProjects,
             GraphBuildOptions graphBuildOptions,
             bool lowPriority,
+            bool question,
             string[] inputResultsCaches,
             string outputResultsCache,
 #if FEATURE_GET_COMMANDLINE
@@ -1207,8 +1214,8 @@ namespace Microsoft.Build.CommandLine
 
                 ToolsetDefinitionLocations toolsetDefinitionLocations = ToolsetDefinitionLocations.Default;
 
-                bool preprocessOnly = preprocessWriter != null && !FileUtilities.IsSolutionFilename(projectFile);
-                bool targetsOnly = targetsWriter != null && !FileUtilities.IsSolutionFilename(projectFile);
+                bool isPreprocess = preprocessWriter != null;
+                bool isTargets = targetsWriter != null;
 
                 projectCollection = new ProjectCollection(
                     globalProperties,
@@ -1217,7 +1224,7 @@ namespace Microsoft.Build.CommandLine
                     toolsetDefinitionLocations,
                     cpuCount,
                     onlyLogCriticalEvents,
-                    loadProjectsReadOnly: !preprocessOnly,
+                    loadProjectsReadOnly: !isPreprocess,
                     useAsynchronousLogging: true,
                     reuseProjectRootElementCache: s_isServerNode);
 
@@ -1226,9 +1233,11 @@ namespace Microsoft.Build.CommandLine
                     ThrowInvalidToolsVersionInitializationException(projectCollection.Toolsets, toolsVersion);
                 }
 
+                bool isSolution = FileUtilities.IsSolutionFilename(projectFile);
+
 #if FEATURE_XML_SCHEMA_VALIDATION
                 // If the user has requested that the schema be validated, do that here.
-                if (needToValidateProject && !FileUtilities.IsSolutionFilename(projectFile))
+                if (needToValidateProject && !isSolution)
                 {
                     Microsoft.Build.Evaluation.Project project = projectCollection.LoadProject(projectFile, globalProperties, toolsVersion);
                     Microsoft.Build.Evaluation.Toolset toolset = projectCollection.GetToolset(toolsVersion ?? project.ToolsVersion);
@@ -1246,22 +1255,41 @@ namespace Microsoft.Build.CommandLine
                 }
 #endif
 
-                if (preprocessOnly)
+                if (isPreprocess)
                 {
-                    Project project = projectCollection.LoadProject(projectFile, globalProperties, toolsVersion);
+                    // TODO: Support /preprocess for solution files. https://github.com/dotnet/msbuild/issues/7697
+                    if (isSolution)
+                    {
+                        Console.WriteLine(ResourceUtilities.GetResourceString("UnsupportedSwitchForSolutionFiles"), CommandLineSwitches.ParameterizedSwitch.Preprocess);
+                        success = false;
+                    }
+                    else
+                    {
+                        Project project = projectCollection.LoadProject(projectFile, globalProperties, toolsVersion);
 
-                    project.SaveLogicalProject(preprocessWriter);
+                        project.SaveLogicalProject(preprocessWriter);
 
-                    projectCollection.UnloadProject(project);
-                    success = true;
+                        projectCollection.UnloadProject(project);
+
+                        success = true;
+                    }
                 }
 
-                if (targetsOnly)
+                if (isTargets)
                 {
-                    success = PrintTargets(projectFile, toolsVersion, globalProperties, targetsWriter, projectCollection);
+                    // TODO: Support /targets for solution files. https://github.com/dotnet/msbuild/issues/7697
+                    if (isSolution)
+                    {
+                        Console.WriteLine(ResourceUtilities.GetResourceString("UnsupportedSwitchForSolutionFiles"), CommandLineSwitches.ParameterizedSwitch.Targets);
+                        success = false;
+                    }
+                    else
+                    {
+                        success = PrintTargets(projectFile, toolsVersion, globalProperties, targetsWriter, projectCollection);
+                    }
                 }
 
-                if (!preprocessOnly && !targetsOnly)
+                if (!isPreprocess && !isTargets)
                 {
                     BuildParameters parameters = new BuildParameters(projectCollection);
 
@@ -1292,6 +1320,7 @@ namespace Microsoft.Build.CommandLine
                     parameters.ProjectIsolationMode = isolateProjects;
                     parameters.InputResultsCacheFiles = inputResultsCaches;
                     parameters.OutputResultsCacheFile = outputResultsCache;
+                    parameters.Question = question;
 
                     // Propagate the profiler flag into the project load settings so the evaluator
                     // can pick it up
@@ -1338,7 +1367,9 @@ namespace Microsoft.Build.CommandLine
                         {
                             messagesToLogInBuildLoggers.Add(
                                 new BuildManager.DeferredBuildMessage(
-                                    String.Format("Included response file: {0}", responseFilePath),
+                                    ResourceUtilities.FormatResourceStringIgnoreCodeAndKeyword(
+                                        "DeferredResponseFile",
+                                        responseFilePath),
                                     MessageImportance.Low,
                                     responseFilePath));
                         }
@@ -2213,6 +2244,7 @@ namespace Microsoft.Build.CommandLine
             ref string[] inputResultsCaches,
             ref string outputResultsCache,
             ref bool lowPriority,
+            ref bool question,
             bool recursing,
             string commandLine)
         {
@@ -2328,6 +2360,7 @@ namespace Microsoft.Build.CommandLine
                                                            ref inputResultsCaches,
                                                            ref outputResultsCache,
                                                            ref lowPriority,
+                                                           ref question,
                                                            recursing: true,
                                                            commandLine);
                     }
@@ -2391,9 +2424,12 @@ namespace Microsoft.Build.CommandLine
                         graphBuild = ProcessGraphBuildSwitch(commandLineSwitches[CommandLineSwitches.ParameterizedSwitch.GraphBuild]);
                     }
 
+                    question = commandLineSwitches.IsParameterizedSwitchSet(CommandLineSwitches.ParameterizedSwitch.Question);
+
                     inputResultsCaches = ProcessInputResultsCaches(commandLineSwitches);
 
                     outputResultsCache = ProcessOutputResultsCache(commandLineSwitches);
+
 
                     // figure out which loggers are going to listen to build events
                     string[][] groupedFileLoggerParameters = commandLineSwitches.GetFileLoggerParameters();
@@ -4043,6 +4079,7 @@ namespace Microsoft.Build.CommandLine
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_OutputCacheFile"));
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_36_GraphBuildSwitch"));
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_39_LowPrioritySwitch"));
+            Console.WriteLine(AssemblyResources.GetString("HelpMessage_41_QuestionSwitch"));
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_7_ResponseFile"));
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_8_NoAutoResponseSwitch"));
             Console.WriteLine(AssemblyResources.GetString("HelpMessage_5_NoLogoSwitch"));
