@@ -2268,73 +2268,68 @@ namespace Microsoft.Build.UnitTests
         [InlineData(true, false)]
         public void DoNotCorruptSourceOfLink(bool useHardLink, bool useSymbolicLink)
         {
-            string sourceFile1 = FileUtilities.GetTemporaryFile();
-            string sourceFile2 = FileUtilities.GetTemporaryFile();
-            string temp = Path.GetTempPath();
-            string destFolder = Path.Combine(temp, "2A333ED756AF4dc392E728D0F864A398");
-            string destFile = Path.Combine(destFolder, "The Destination");
+            using TestEnvironment env = TestEnvironment.Create();
+            TransientTestFile sourceFile1 = env.CreateFile("source1.tmp", "This is the first source temp file."); // HIGHCHAR: Test writes in UTF8 without preamble.
+            TransientTestFile sourceFile2 = env.CreateFile("source2.tmp", "This is the second source temp file."); // HIGHCHAR: Test writes in UTF8 without preamble.
+            TransientTestFolder destFolder = env.CreateFolder(createFolder: false);
+            string destFile = Path.Combine(destFolder.Path, "The Destination");
 
-            try
+            // Don't create the dest folder, let task do that
+            ITaskItem[] sourceFiles = { new TaskItem(sourceFile1.Path) };
+            ITaskItem[] destinationFiles = { new TaskItem(destFile) };
+
+            var me = new MockEngine(true);
+            var t = new Copy
             {
-                File.WriteAllText(sourceFile1, "This is the first source temp file."); // HIGHCHAR: Test writes in UTF8 without preamble.
-                File.WriteAllText(sourceFile2, "This is the second source temp file."); // HIGHCHAR: Test writes in UTF8 without preamble.
+                RetryDelayMilliseconds = 1, // speed up tests!
+                BuildEngine = me,
+                SourceFiles = sourceFiles,
+                DestinationFiles = destinationFiles,
+                SkipUnchangedFiles = true,
+                UseHardlinksIfPossible = useHardLink,
+                UseSymboliclinksIfPossible = useSymbolicLink,
+            };
 
-                // Don't create the dest folder, let task do that
+            t.Execute().ShouldBeTrue();
+            File.Exists(destFile).ShouldBeTrue();
+            File.ReadAllText(destFile).ShouldBe("This is the first source temp file.");
 
-                ITaskItem[] sourceFiles = { new TaskItem(sourceFile1) };
-                ITaskItem[] destinationFiles = { new TaskItem(destFile) };
+            sourceFiles = new TaskItem[] { new TaskItem(sourceFile2.Path) };
 
-                var me = new MockEngine(true);
-                var t = new Copy
-                {
-                    RetryDelayMilliseconds = 1, // speed up tests!
-                    BuildEngine = me,
-                    SourceFiles = sourceFiles,
-                    DestinationFiles = destinationFiles,
-                    SkipUnchangedFiles = true,
-                    UseHardlinksIfPossible = useHardLink,
-                    UseSymboliclinksIfPossible = useSymbolicLink,
-                };
-
-                bool success = t.Execute();
-
-                Assert.True(success); // "success"
-                Assert.True(File.Exists(destFile)); // "destination exists"
-
-                string destinationFileContents = File.ReadAllText(destFile);
-                Assert.Equal("This is the first source temp file.", destinationFileContents);
-
-                sourceFiles = new TaskItem[] { new TaskItem(sourceFile2) };
-
-                t = new Copy
-                {
-                    RetryDelayMilliseconds = 1, // speed up tests!
-                    BuildEngine = me,
-                    SourceFiles = sourceFiles,
-                    DestinationFiles = destinationFiles,
-                    SkipUnchangedFiles = true,
-                    UseHardlinksIfPossible = false,
-                    UseSymboliclinksIfPossible = false,
-                };
-
-                success = t.Execute();
-
-                Assert.True(success); // "success"
-                Assert.True(File.Exists(destFile)); // "destination exists"
-
-                destinationFileContents = File.ReadAllText(destFile);
-                Assert.Equal("This is the second source temp file.", destinationFileContents);
-
-                // Read the source file (it should not have been overwritten)
-                string sourceFileContents = File.ReadAllText(sourceFile1);
-                Assert.Equal("This is the first source temp file.", sourceFileContents);
-
-                ((MockEngine)t.BuildEngine).AssertLogDoesntContain("MSB3026"); // Didn't do retries
-            }
-            finally
+            t = new Copy
             {
-                Helpers.DeleteFiles(sourceFile1, sourceFile2, destFile);
-            }
+                RetryDelayMilliseconds = 1, // speed up tests!
+                BuildEngine = me,
+                SourceFiles = sourceFiles,
+                DestinationFiles = destinationFiles,
+                SkipUnchangedFiles = true,
+                UseHardlinksIfPossible = false,
+                UseSymboliclinksIfPossible = false,
+            };
+
+            t.Execute().ShouldBeTrue();
+            File.Exists(destFile).ShouldBeTrue();
+            File.ReadAllText(destFile).ShouldBe("This is the second source temp file.");
+
+            // Read the source file (it should not have been overwritten)
+            File.ReadAllText(sourceFile1.Path).ShouldBe("This is the first source temp file.");
+            ((MockEngine)t.BuildEngine).AssertLogDoesntContain("MSB3026"); // Didn't do retries
+
+            destinationFiles = new TaskItem[] { new TaskItem(
+                Path.Combine(Path.GetDirectoryName(sourceFile2.Path), ".", Path.GetFileName(sourceFile2.Path))) // sourceFile2.Path with a "." inserted before the file name
+            };
+
+            t = new Copy
+            {
+                RetryDelayMilliseconds = 1, // speed up tests!
+                BuildEngine = me,
+                SourceFiles = sourceFiles,
+                DestinationFiles = destinationFiles,
+                SkipUnchangedFiles = true,
+            };
+
+            t.Execute().ShouldBeTrue();
+            File.Exists(sourceFile2.Path).ShouldBeTrue();
         }
     }
 
