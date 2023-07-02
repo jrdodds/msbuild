@@ -260,12 +260,12 @@ namespace Microsoft.Build.UnitTests.Construction
             using (var env = TestEnvironment.Create())
             {
                 string rptprojProjContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
-                    <Project xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" ToolsVersion=""2.0"">
+                    <Project xmlns:xsi=""https://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""https://www.w3.org/2001/XMLSchema"" ToolsVersion=""2.0"">
                       <DataSources />
                       <Reports />
                     </Project>";
                 string dwprojProjContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
-                    <Project xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:ddl2=""http://schemas.microsoft.com/analysisservices/2003/engine/2"" xmlns:ddl2_2=""http://schemas.microsoft.com/analysisservices/2003/engine/2/2"" xmlns:ddl100_100=""http://schemas.microsoft.com/analysisservices/2008/engine/100/100"" xmlns:ddl200=""http://schemas.microsoft.com/analysisservices/2010/engine/200"" xmlns:ddl200_200=""http://schemas.microsoft.com/analysisservices/2010/engine/200/200"" xmlns:dwd=""http://schemas.microsoft.com/DataWarehouse/Designer/1.0"">
+                    <Project xmlns:xsd=""https://www.w3.org/2001/XMLSchema"" xmlns:xsi=""https://www.w3.org/2001/XMLSchema-instance"" xmlns:ddl2=""https://schemas.microsoft.com/analysisservices/2003/engine/2"" xmlns:ddl2_2=""https://schemas.microsoft.com/analysisservices/2003/engine/2/2"" xmlns:ddl100_100=""https://schemas.microsoft.com/analysisservices/2008/engine/100/100"" xmlns:ddl200=""https://schemas.microsoft.com/analysisservices/2010/engine/200"" xmlns:ddl200_200=""https://schemas.microsoft.com/analysisservices/2010/engine/200/200"" xmlns:dwd=""https://schemas.microsoft.com/DataWarehouse/Designer/1.0"">
                       <ProductVersion />
                       <SchemaVersion />
                       <State />
