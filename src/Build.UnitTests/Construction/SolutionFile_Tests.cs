@@ -5,10 +5,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+
 using Microsoft.Build.Construction;
 using Microsoft.Build.Exceptions;
 using Microsoft.Build.Shared;
+
 using Shouldly;
+
 using Xunit;
 using Xunit.Abstractions;
 
@@ -64,6 +67,7 @@ namespace Microsoft.Build.UnitTests.Construction
                      proj);
             });
         }
+
         /// <summary>
         /// Test that the first project line of a project with the C++ project guid and an
         /// arbitrary extension is seen as valid -- we assume that all C++ projects except
@@ -628,7 +632,7 @@ namespace Microsoft.Build.UnitTests.Construction
                 SolutionFile solution = ParseSolutionHelper(solutionFileContents);
                 string errCode;
                 ResourceUtilities.FormatResourceStringStripCodeAndKeyword(out errCode, out _, "Shared.InvalidProjectFile",
-                   "someproj.etp", String.Empty);
+                   "someproj.etp", string.Empty);
                 foreach (string warningString in solution.SolutionParserWarnings)
                 {
                     TestOutputHelper.WriteLine(warningString);
@@ -663,7 +667,7 @@ namespace Microsoft.Build.UnitTests.Construction
             SolutionFile solution = ParseSolutionHelper(solutionFileContents);
             string errCode;
             ResourceUtilities.FormatResourceStringStripCodeAndKeyword(out errCode, out _, "Shared.ProjectFileCouldNotBeLoaded",
-                  "someproj.etp", String.Empty);
+                  "someproj.etp", string.Empty);
             solution.SolutionParserErrorCodes[0].ShouldContain(errCode);
         }
 
@@ -752,6 +756,7 @@ namespace Microsoft.Build.UnitTests.Construction
                 ParseSolutionHelper(solutionFileContents);
             });
         }
+
         /// <summary>
         /// Expected version numbers less than 7 to cause an invalid project file exception.
         /// </summary>
@@ -769,6 +774,7 @@ namespace Microsoft.Build.UnitTests.Construction
                 ParseSolutionHelper(solutionFileContents);
             });
         }
+
         /// <summary>
         /// Ensure that an unsupported version greater than the current maximum (10) in the .SLN file results in a
         /// comment indicating we will try and continue
@@ -1721,6 +1727,7 @@ EndGlobal
                 ParseSolutionHelper(solutionFileContents);
             });
         }
+
         /// <summary>
         /// Test some invalid cases for solution configuration parsing
         /// There can be only one '=' character in a sln cfg entry, separating two identical names
@@ -1747,6 +1754,7 @@ EndGlobal
                 ParseSolutionHelper(solutionFileContents);
             });
         }
+
         /// <summary>
         /// Test some invalid cases for solution configuration parsing
         /// Solution configurations must include the platform part
