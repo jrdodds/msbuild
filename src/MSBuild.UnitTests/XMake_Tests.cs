@@ -2532,7 +2532,7 @@ EndGlobal
         public void TargetsSwitchWithProjectWithOneTarget()
         {
             string[] arguments = { @"/ts", @"/nologo" };
-            string targetName = "TestTarget";
+            string targetName = @"TestTarget";
             string project =
                 @"<Project>" + Environment.NewLine +
                 @"  <Target Name=""" + targetName + @""" />" + Environment.NewLine +
@@ -2543,6 +2543,7 @@ EndGlobal
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
                 .Where(line =>
                     !string.IsNullOrWhiteSpace(line) && !line.StartsWith("==") && !line.StartsWith("Process ID is"))
+                .Select(item => item.TrimEnd())
                 .ToList();
 
             listOfTargets.Any().ShouldBeTrue();
