@@ -2498,6 +2498,105 @@ EndGlobal
 
 #endif
 
+        /// <summary>
+        /// Given an empty project, the Targets switch should list no targets.
+        /// </summary>
+        [Fact]
+        public void TargetsSwitchWithEmptyProject()
+        {
+            string[] arguments = { @"/ts", @"/nologo" };
+            string[] emptyProjects =
+            {
+                @"<Project />" + Environment.NewLine,
+                @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine,
+                @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine,
+                @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine,
+            };
+
+            foreach (string project in emptyProjects)
+            {
+                string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+                IEnumerable<string> listOfTargets = logContents
+                    .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(line =>
+                        !string.IsNullOrWhiteSpace(line) && !line.StartsWith("==") && !line.StartsWith("Process ID is"));
+
+                listOfTargets.Any().ShouldBeFalse();
+            }
+        }
+
+        /// <summary>
+        /// Given an empty project, the Targets switch should list no targets.
+        /// </summary>
+        [Fact]
+        public void TargetsSwitchWithProjectWithOneTarget()
+        {
+            string[] arguments = { @"/ts", @"/nologo" };
+            string targetName = "TestTarget";
+            string project =
+                @"<Project>" + Environment.NewLine +
+                @"  <Target Name=""" + targetName + @""" />" + Environment.NewLine +
+                @"</Project>" + Environment.NewLine;
+
+            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+            IEnumerable<string> listOfTargets = logContents
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(line =>
+                    !string.IsNullOrWhiteSpace(line) && !line.StartsWith("==") && !line.StartsWith("Process ID is"))
+                .ToList();
+
+            listOfTargets.Any().ShouldBeTrue();
+            listOfTargets.First().ShouldBe(targetName);
+        }
+
+        /// <summary>
+        /// Given an empty project, the Preprocess switch should report an empty project.
+        /// </summary>
+        [Fact]
+        public void PreprocessSwitchWithEmptyProject()
+        {
+            string[] arguments = { @"/pp", @"/nologo" };
+            string project = @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+            logContents.ShouldContain(@"<Project />");
+        }
+
+        /// <summary>
+        /// Given an empty project, the Preprocess switch should report an empty project.
+        /// </summary>
+        [Fact]
+        public void PreprocessSwitchWithEmptyProjectTag()
+        {
+            string[] arguments = { @"/pp", @"/nologo" };
+            string project = @"<Project />" + Environment.NewLine;
+            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+            logContents.ShouldContain(@"<Project />");
+        }
+
+        /// <summary>
+        /// Given an empty project, the Preprocess switch should report an empty project.
+        /// </summary>
+        [Fact]
+        public void PreprocessSwitchWithEmptyProjectWithNamespace()
+        {
+            string[] arguments = { @"/pp", @"/nologo" };
+            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+            logContents.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
+        }
+
+        /// <summary>
+        /// Given an empty project, the Preprocess switch should report an empty project.
+        /// </summary>
+        [Fact]
+        public void PreprocessSwitchWithEmptyProjectTagWithNamespace()
+        {
+            string[] arguments = { @"/pp", @"/nologo" };
+            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
+            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
+            logContents.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
+        }
+
         private string CopyMSBuild()
         {
             string dest = null;

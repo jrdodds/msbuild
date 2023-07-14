@@ -838,6 +838,9 @@ namespace Microsoft.Build.CommandLine
                     // if there was no need to start the build e.g. because /help was triggered
                     // do nothing
                 }
+
+                preprocessWriter?.Dispose();
+                targetsWriter?.Dispose();
             }
             /**********************************************************************************************************************
              * WARNING: Do NOT add any more catch blocks below! Exceptions should be caught as close to their point of origin as
@@ -1275,6 +1278,7 @@ namespace Microsoft.Build.CommandLine
                         Project project = projectCollection.LoadProject(projectFile, globalProperties, toolsVersion);
 
                         project.SaveLogicalProject(preprocessWriter);
+                        preprocessWriter.Flush();
 
                         projectCollection.UnloadProject(project);
 
@@ -1293,6 +1297,7 @@ namespace Microsoft.Build.CommandLine
                     else
                     {
                         success = PrintTargets(projectFile, toolsVersion, globalProperties, targetsWriter, projectCollection);
+                        targetsWriter.Flush();
                     }
                 }
 
