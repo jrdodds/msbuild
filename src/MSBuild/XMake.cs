@@ -652,6 +652,10 @@ namespace Microsoft.Build.CommandLine
             ExitType exitType = ExitType.Success;
 
             ConsoleCancelEventHandler cancelHandler = Console_CancelKeyPress;
+
+            TextWriter preprocessWriter = null;
+            TextWriter targetsWriter = null;
+
             try
             {
 #if FEATURE_GET_COMMANDLINE
@@ -691,8 +695,6 @@ namespace Microsoft.Build.CommandLine
 #else
                 bool enableNodeReuse = false;
 #endif
-                TextWriter preprocessWriter = null;
-                TextWriter targetsWriter = null;
                 bool detailedSummary = false;
                 ISet<string> warningsAsErrors = null;
                 ISet<string> warningsNotAsErrors = null;
@@ -838,9 +840,6 @@ namespace Microsoft.Build.CommandLine
                     // if there was no need to start the build e.g. because /help was triggered
                     // do nothing
                 }
-
-                preprocessWriter?.Dispose();
-                targetsWriter?.Dispose();
             }
             /**********************************************************************************************************************
              * WARNING: Do NOT add any more catch blocks below! Exceptions should be caught as close to their point of origin as
@@ -980,6 +979,16 @@ namespace Microsoft.Build.CommandLine
                     MSBuildEventSource.Log.MSBuildExeStop(string.Join(" ", commandLine));
                 }
 #endif
+
+                if (preprocessWriter != null && !ReferenceEquals(preprocessWriter, Console.Out))
+                {
+                    preprocessWriter.Dispose();
+                }
+
+                if (targetsWriter != null && !ReferenceEquals(targetsWriter, Console.Out))
+                {
+                    targetsWriter.Dispose();
+                }
             }
             /**********************************************************************************************************************
              * WARNING: Do NOT add any more catch blocks above!
@@ -1278,7 +1287,6 @@ namespace Microsoft.Build.CommandLine
                         Project project = projectCollection.LoadProject(projectFile, globalProperties, toolsVersion);
 
                         project.SaveLogicalProject(preprocessWriter);
-                        preprocessWriter.Flush();
 
                         projectCollection.UnloadProject(project);
 
@@ -1297,7 +1305,6 @@ namespace Microsoft.Build.CommandLine
                     else
                     {
                         success = PrintTargets(projectFile, toolsVersion, globalProperties, targetsWriter, projectCollection);
-                        targetsWriter.Flush();
                     }
                 }
 
