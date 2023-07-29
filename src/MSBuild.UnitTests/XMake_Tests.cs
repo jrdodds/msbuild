@@ -2681,7 +2681,7 @@ EndGlobal
         private enum SwitchUnderTest
         {
             Preprocess,
-            Targets
+            Targets,
         }
 
         private (MSBuildApp.ExitType Exit, string Output) ExecutePreprocessSwitch(string projectContents, params string[] arguments)
@@ -2697,9 +2697,6 @@ EndGlobal
         private (MSBuildApp.ExitType Exit, string Output) ExecuteSwitch(SwitchUnderTest switchUnderTest, string projectContents, params string[] arguments)
         {
             using TestEnvironment environment = TestEnvironment.Create();
-            _ = environment.SetEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE", "en"); // build machines may have other values.
-            CultureInfo.CurrentUICulture = new CultureInfo("en"); // Validate that the thread will produce an english log regardless of the machine OS language
-
             TransientTestProjectWithFiles project = environment.CreateTestProjectWithFiles(projectContents);
             TransientTestFile outputFile = environment.GetTempFile();
 
