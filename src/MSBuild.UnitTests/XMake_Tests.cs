@@ -2504,7 +2504,6 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProject()
         {
-            string[] arguments = { @"/ts", @"/nologo" };
             string[] emptyProjects =
             {
                 @"<Project />" + Environment.NewLine,
@@ -2515,13 +2514,10 @@ EndGlobal
 
             foreach (string project in emptyProjects)
             {
-                string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-                IEnumerable<string> listOfTargets = logContents
-                    .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
-                    .Where(line =>
-                        !string.IsNullOrWhiteSpace(line) && !line.StartsWith("==") && !line.StartsWith("Process ID is"));
-
-                listOfTargets.Any().ShouldBeFalse();
+                (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+                exit.ShouldBe(MSBuildApp.ExitType.Success);
+                IList<string> listOfTargets = GetListOfTargets(output);
+                listOfTargets.Count.ShouldBe(0);
             }
         }
 
@@ -2531,23 +2527,18 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithProjectWithOneTarget()
         {
-            string[] arguments = { @"/ts", @"/nologo" };
-            string targetName = @"TestTarget";
+            const string targetName = @"TestTarget";
             string project =
                 @"<Project>" + Environment.NewLine +
                 @"  <Target Name=""" + targetName + @""" />" + Environment.NewLine +
                 @"</Project>" + Environment.NewLine;
 
-            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-            IEnumerable<string> listOfTargets = logContents
-                .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
-                .Where(line =>
-                    !string.IsNullOrWhiteSpace(line) && !line.StartsWith("==") && !line.StartsWith("Process ID is"))
-                .Select(item => item.TrimEnd())
-                .ToList();
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
 
-            listOfTargets.Any().ShouldBeTrue();
-            listOfTargets.First().ShouldBe(targetName);
+            IList<string> listOfTargets = GetListOfTargets(output);
+            listOfTargets.Count.ShouldBe(1);
+            listOfTargets[0].ShouldBe(targetName);
         }
 
         /// <summary>
@@ -2556,10 +2547,10 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProject()
         {
-            string[] arguments = { @"/pp", @"/nologo" };
             string project = @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-            logContents.ShouldContain(@"<Project />");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            output.ShouldContain(@"<Project />");
         }
 
         /// <summary>
@@ -2568,10 +2559,10 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectTag()
         {
-            string[] arguments = { @"/pp", @"/nologo" };
             string project = @"<Project />" + Environment.NewLine;
-            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-            logContents.ShouldContain(@"<Project />");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            output.ShouldContain(@"<Project />");
         }
 
         /// <summary>
@@ -2580,10 +2571,10 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectWithNamespace()
         {
-            string[] arguments = { @"/pp", @"/nologo" };
             string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-            logContents.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            output.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
         }
 
         /// <summary>
@@ -2592,10 +2583,10 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectTagWithNamespace()
         {
-            string[] arguments = { @"/pp", @"/nologo" };
             string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
-            string logContents = ExecuteMSBuildExeExpectSuccess(project, arguments: arguments);
-            logContents.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            output.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
         }
 
         private string CopyMSBuild()
@@ -2686,6 +2677,69 @@ EndGlobal
 
             return (success, output);
         }
+
+        private enum SwitchUnderTest
+        {
+            Preprocess,
+            Targets
+        }
+
+        private (MSBuildApp.ExitType Exit, string Output) ExecutePreprocessSwitch(string projectContents, params string[] arguments)
+        {
+            return ExecuteSwitch(SwitchUnderTest.Preprocess, projectContents, arguments);
+        }
+
+        private (MSBuildApp.ExitType Exit, string Output) ExecuteTargetsSwitch(string projectContents, params string[] arguments)
+        {
+            return ExecuteSwitch(SwitchUnderTest.Targets, projectContents, arguments);
+        }
+
+        private (MSBuildApp.ExitType Exit, string Output) ExecuteSwitch(SwitchUnderTest switchUnderTest, string projectContents, params string[] arguments)
+        {
+            using TestEnvironment environment = TestEnvironment.Create();
+            _ = environment.SetEnvironmentVariable("DOTNET_CLI_UI_LANGUAGE", "en"); // build machines may have other values.
+            CultureInfo.CurrentUICulture = new CultureInfo("en"); // Validate that the thread will produce an english log regardless of the machine OS language
+
+            TransientTestProjectWithFiles project = environment.CreateTestProjectWithFiles(projectContents);
+            TransientTestFile outputFile = environment.GetTempFile();
+
+            List<string> commandLine = new(new[]
+            {
+                @"msbuild",
+                $@"""{project.ProjectFile}""",
+            });
+            switch (switchUnderTest)
+            {
+                case SwitchUnderTest.Preprocess:
+                    commandLine.Add($@"-preprocess:{outputFile.Path}");
+                    break;
+                case SwitchUnderTest.Targets:
+                    commandLine.Add($@"-targets:{outputFile.Path}");
+                    break;
+            }
+
+            if (arguments?.Length > 0)
+            {
+                commandLine.AddRange(arguments);
+            }
+
+#if FEATURE_GET_COMMANDLINE
+            MSBuildApp.ExitType exit = MSBuildApp.Execute(string.Join(" ", commandLine));
+#else
+            MSBuildApp.ExitType exit = MSBuildApp.Execute(commandLine.ToArray());
+#endif
+
+            return (exit, File.ReadAllText(outputFile.Path));
+        }
+
+        private IList<string> GetListOfTargets(string output) => output
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(line =>
+                    !string.IsNullOrWhiteSpace(line) &&
+                    !line.StartsWith("==") &&
+                    !line.StartsWith("Process ID is"))
+                .Select(item => item.TrimEnd())
+                .ToList();
 
         public void Dispose()
         {
