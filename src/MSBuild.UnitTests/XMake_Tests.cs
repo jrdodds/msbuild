@@ -2504,21 +2504,50 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProject()
         {
-            string[] emptyProjects =
-            {
-                @"<Project />" + Environment.NewLine,
-                @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine,
-                @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine,
-                @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine,
-            };
+            string project = @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            IList<string> listOfTargets = GetListOfTargets(output);
+            listOfTargets.Count.ShouldBe(0);
+        }
 
-            foreach (string project in emptyProjects)
-            {
-                (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
-                exit.ShouldBe(MSBuildApp.ExitType.Success);
-                IList<string> listOfTargets = GetListOfTargets(output);
-                listOfTargets.Count.ShouldBe(0);
-            }
+        /// <summary>
+        /// Given an empty project, the Targets switch should list no targets.
+        /// </summary>
+        [Fact]
+        public void TargetsSwitchWithEmptyProjectTag()
+        {
+            string project = @"<Project />" + Environment.NewLine;
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            IList<string> listOfTargets = GetListOfTargets(output);
+            listOfTargets.Count.ShouldBe(0);
+        }
+
+        /// <summary>
+        /// Given an empty project, the Targets switch should list no targets.
+        /// </summary>
+        [Fact]
+        public void TargetsSwitchWithEmptyProjectWithNamespace()
+        {
+            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            IList<string> listOfTargets = GetListOfTargets(output);
+            listOfTargets.Count.ShouldBe(0);
+        }
+
+        /// <summary>
+        /// Given an empty project, the Targets switch should list no targets.
+        /// </summary>
+        [Fact]
+        public void TargetsSwitchWithEmptyProjectTagWithNamespace()
+        {
+            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            exit.ShouldBe(MSBuildApp.ExitType.Success);
+            IList<string> listOfTargets = GetListOfTargets(output);
+            listOfTargets.Count.ShouldBe(0);
         }
 
         /// <summary>
