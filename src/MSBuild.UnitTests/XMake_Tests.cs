@@ -2504,8 +2504,7 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProject()
         {
-            string project = @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(EmptyProject(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             IList<string> listOfTargets = GetListOfTargets(output);
             listOfTargets.Count.ShouldBe(0);
@@ -2517,8 +2516,7 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProjectTag()
         {
-            string project = @"<Project />" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(EmptyProjectTag(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             IList<string> listOfTargets = GetListOfTargets(output);
             listOfTargets.Count.ShouldBe(0);
@@ -2530,8 +2528,7 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProjectWithNamespace()
         {
-            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(EmptyProjectWithNamespace(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             IList<string> listOfTargets = GetListOfTargets(output);
             listOfTargets.Count.ShouldBe(0);
@@ -2543,15 +2540,14 @@ EndGlobal
         [Fact]
         public void TargetsSwitchWithEmptyProjectTagWithNamespace()
         {
-            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecuteTargetsSwitch(EmptyProjectTagWithNamespace(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             IList<string> listOfTargets = GetListOfTargets(output);
             listOfTargets.Count.ShouldBe(0);
         }
 
         /// <summary>
-        /// Given an empty project, the Targets switch should list no targets.
+        /// Given a project with one target, the Targets switch should list one target.
         /// </summary>
         [Fact]
         public void TargetsSwitchWithProjectWithOneTarget()
@@ -2576,8 +2572,7 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProject()
         {
-            string project = @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(EmptyProject(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             output.ShouldContain(@"<Project />");
         }
@@ -2588,8 +2583,7 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectTag()
         {
-            string project = @"<Project />" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(EmptyProjectTag(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             output.ShouldContain(@"<Project />");
         }
@@ -2600,8 +2594,7 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectWithNamespace()
         {
-            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(EmptyProjectWithNamespace(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             output.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
         }
@@ -2612,10 +2605,27 @@ EndGlobal
         [Fact]
         public void PreprocessSwitchWithEmptyProjectTagWithNamespace()
         {
-            string project = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
-            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(project, @"-nologo");
+            (MSBuildApp.ExitType exit, string output) = ExecutePreprocessSwitch(EmptyProjectTagWithNamespace(), @"-nologo");
             exit.ShouldBe(MSBuildApp.ExitType.Success);
             output.ShouldContain(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />");
+        }
+
+        [Fact]
+        public void PreprocessSwitchWithEmptySolution()
+        {
+            using TestEnvironment environment = TestEnvironment.Create();
+            TransientTestProjectWithFiles solution = environment.CreateTestProjectWithFiles("build.sln", EmptySolution());
+
+            List<string> commandLine = new(new[]
+            {
+                @"msbuild",
+                $@"""{solution.ProjectFile}""",
+            });
+#if FEATURE_GET_COMMANDLINE
+            MSBuildApp.ExitType exit = MSBuildApp.Execute(string.Join(" ", commandLine));
+#else
+            MSBuildApp.ExitType exit = MSBuildApp.Execute(commandLine.ToArray());
+#endif
         }
 
         private string CopyMSBuild()
@@ -2706,6 +2716,29 @@ EndGlobal
 
             return (success, output);
         }
+
+        private static string EmptySolution() => Environment.NewLine +
+                   "Microsoft Visual Studio Solution File, Format Version 12.00" + Environment.NewLine +
+                   "# Visual Studio Version 17" + Environment.NewLine +
+                   "VisualStudioVersion = 17.6.33829.357" + Environment.NewLine +
+                   "MinimumVisualStudioVersion = 10.0.40219.1" + Environment.NewLine +
+                   "Global" + Environment.NewLine +
+                   "    GlobalSection(SolutionProperties) = preSolution" + Environment.NewLine +
+                   "        HideSolutionNode = FALSE" + Environment.NewLine +
+                   "    EndGlobalSection" + Environment.NewLine +
+                   "    GlobalSection(ExtensibilityGlobals) = postSolution" + Environment.NewLine +
+                   "        SolutionGuid = {F89394A6-A4C0-47E9-88BF-33D67BB7630D}" + Environment.NewLine +
+                   "    EndGlobalSection" + Environment.NewLine +
+                   "EndGlobal" + Environment.NewLine +
+                   Environment.NewLine;
+
+        private static string EmptyProject() => @"<Project>" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+
+        private static string EmptyProjectTag() => @"<Project />" + Environment.NewLine;
+
+        private static string EmptyProjectWithNamespace() => @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" >" + Environment.NewLine + @"</Project>" + Environment.NewLine;
+
+        private static string EmptyProjectTagWithNamespace() => @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" />" + Environment.NewLine;
 
         private enum SwitchUnderTest
         {
