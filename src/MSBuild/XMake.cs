@@ -1267,7 +1267,7 @@ namespace Microsoft.Build.CommandLine
                 InitializationException.Throw(ResourceUtilities.FormatResourceStringStripCodeAndKeyword("ProjectUpgradeNeededToVcxProj", projectFile), null);
             }
 
-            bool success = false;
+            bool success = true;
 
             ProjectCollection projectCollection = null;
             bool onlyLogCriticalEvents = false;
@@ -1383,11 +1383,12 @@ namespace Microsoft.Build.CommandLine
 
                 if (isPreprocess)
                 {
+                    success = false;
+
                     // TODO: Support /preprocess for solution files. https://github.com/dotnet/msbuild/issues/7697
                     if (isSolution)
                     {
                         Console.WriteLine(ResourceUtilities.GetResourceString("UnsupportedSwitchForSolutionFiles"), CommandLineSwitches.ParameterizedSwitch.Preprocess);
-                        success = false;
                     }
                     else
                     {
@@ -1401,13 +1402,14 @@ namespace Microsoft.Build.CommandLine
                     }
                 }
 
-                if (isTargets)
+                if (isTargets && success)
                 {
+                    success = false;
+
                     // TODO: Support /targets for solution files. https://github.com/dotnet/msbuild/issues/7697
                     if (isSolution)
                     {
                         Console.WriteLine(ResourceUtilities.GetResourceString("UnsupportedSwitchForSolutionFiles"), CommandLineSwitches.ParameterizedSwitch.Targets);
-                        success = false;
                     }
                     else
                     {
@@ -1417,6 +1419,7 @@ namespace Microsoft.Build.CommandLine
 
                 if (!isPreprocess && !isTargets)
                 {
+                    success = false;
                     BuildParameters parameters = new BuildParameters(projectCollection);
 
                     // By default we log synchronously to the console for compatibility with previous versions,
