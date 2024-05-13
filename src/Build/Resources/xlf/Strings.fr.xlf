@@ -207,6 +207,26 @@
         <note>{StrBegin="MSB4006: "}UE: This message is shown when the build engine detects a target referenced in a circular manner -- a project cannot
     request a target to build itself (perhaps via a chain of other targets).</note>
       </trans-unit>
+      <trans-unit id="CustomAnalyzerAssemblyNotExist">
+        <source>Failed to find the specified custom analyzer assembly: {0}. Please check if it exists.</source>
+        <target state="translated">Impossible de trouver l’assemblée d'analyseur personnalisé spécifié : {0}. Vérifiez s’il existe.</target>
+        <note>The message is emitted when the custom analyzer assembly can not be found.</note>
+      </trans-unit>
+      <trans-unit id="CustomAnalyzerFailedAcquisition">
+        <source>Failed to register the custom analyzer: {0}.</source>
+        <target state="translated">Échec de l’inscription de l’analyseur personnalisé : {0}.</target>
+        <note>The message is emitted on failed loading of the custom analyzer in process.</note>
+      </trans-unit>
+      <trans-unit id="CustomAnalyzerFailedRuleLoading">
+        <source>Failed to instantiate the custom analyzer rule with the following exception: {0}.</source>
+        <target state="translated">Échec de l’instanciation de la règle d’analyseur personnalisé avec l’exception suivante : {0}.</target>
+        <note>The message is emitted on failed loading of the custom analyzer rule in process.</note>
+      </trans-unit>
+      <trans-unit id="CustomAnalyzerSuccessfulAcquisition">
+        <source>Custom analyzer rule: {0} has been registered successfully.</source>
+        <target state="translated">Règle de l’analyseur personnalisé : {0} a été correctement inscrit.</target>
+        <note>The message is emitted on successful loading of the custom analyzer rule in process.</note>
+      </trans-unit>
       <trans-unit id="DefaultSDKResolverError">
         <source>MSB4276: The default SDK resolver failed to resolve SDK "{0}" because directory "{1}" did not exist.</source>
         <target state="translated">MSB4276: Le programme de résolution du SDK par défaut n’a pas pu résoudre le SDK «{0}», car le répertoire «{1}» n’existait pas.</target>
@@ -268,6 +288,11 @@
         <target state="translated">MSB4259: espace inattendu à la position "{1}" de la condition "{0}". Avez-vous oublié de supprimer un espace ?</target>
         <note>{StrBegin="MSB4259: "}</note>
       </trans-unit>
+      <trans-unit id="ImportedProjectFromVSDistribution">
+        <source>MSB4278: The imported file "{0}" does not exist and appears to be part of a Visual Studio component. This file may require MSBuild.exe in order to be imported successfully, and so may fail to build in the dotnet CLI. </source>
+        <target state="translated">MSB4278: le fichier importé « {0} » n’existe pas et semble faire partie d’un composant Visual Studio. Ce fichier peut nécessiter MSBuild.exe afin d’être importé avec succès, et peut donc ne pas être généré dans l’interface CLI dotnet. </target>
+        <note>{StrBegin="MSB4278: "}LOCALIZATION: &lt;Import&gt; should not be localized.</note>
+      </trans-unit>
       <trans-unit id="InputCacheFilesDoNotExist">
         <source>MSB4255: The following input result cache files do not exist: "{0}"</source>
         <target state="translated">MSB4255: Les fichiers cache des résultats d'entrée suivants n'existent pas : "{0}"</target>
@@ -279,8 +304,8 @@
         <note />
       </trans-unit>
       <trans-unit id="IsolatedContextDoesNotSupportFileSystem">
-        <source>EvaluationContext objects created with SharingPolicy.Isolated do not support being passed an MSBuildFileSystemBase file system.</source>
-        <target state="translated">Les objets EvaluationContext créés avec SharingPolicy.Isolated ne prennent pas en charge le passage d'un système de fichiers MSBuildFileSystemBase.</target>
+        <source>EvaluationContext objects created with SharingPolicy.Isolated or SharingPolicy.SharedSDKCache do not support being passed an MSBuildFileSystemBase file system.</source>
+        <target state="translated">Les objets EvaluationContext créés avec SharingPolicy.Isolated ou SharingPolicy.SharedSDKCache ne prennent pas en charge le passage à un système de fichiers MSBuildFileSystemBase.</target>
         <note />
       </trans-unit>
       <trans-unit id="ItemReferencingSelfInTarget">
@@ -589,6 +614,11 @@ Erreurs : {3}</target>
       <trans-unit id="TaskAssemblyLoadedWithAssemblyLoadContext">
         <source>Assembly loaded during {0}{1}: {2} (location: {3}, MVID: {4}, AssemblyLoadContext: {5})</source>
         <target state="translated">Assembly chargé pendant {0}{1} : {2} (emplacement : {3}, MVID : {4}, AssemblyLoadContext : {5})</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="TaskAssemblyLocationMismatch">
+        <source>Task assembly was loaded from '{0}' while the desired location was '{1}'.</source>
+        <target state="translated">L’assembly de tâche a été chargé à partir de « {0} » alors que l’emplacement souhaité était « {1} ».</target>
         <note />
       </trans-unit>
       <trans-unit id="TaskReleasedCores">

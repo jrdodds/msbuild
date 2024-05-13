@@ -163,7 +163,7 @@ namespace Microsoft.Build.Evaluation
         private readonly ProjectRootElementCacheBase _projectRootElementCache;
 
         /// <summary>
-        /// The logging context to be used and piped down throughout evaluation
+        /// The logging context to be used and piped down throughout evaluation.
         /// </summary>
         private EvaluationLoggingContext _evaluationLoggingContext;
 
@@ -242,7 +242,7 @@ namespace Microsoft.Build.Evaluation
             // Create containers for the evaluation results
             data.InitializeForEvaluation(toolsetProvider, _evaluationContext);
 
-            _expander = new Expander<P, I>(data, data, _evaluationContext);
+            _expander = new Expander<P, I>(data, data, _evaluationContext, _evaluationLoggingContext);
 
             // This setting may change after the build has started, therefore if the user has not set the property to true on the build parameters we need to check to see if it is set to true on the environment variable.
             _expander.WarnForUninitializedProperties = BuildParameters.WarnOnUninitializedProperty || Traits.Instance.EscapeHatches.WarnOnUninitializedProperty;
@@ -1150,9 +1150,6 @@ namespace Microsoft.Build.Evaluation
 #if RUNTIME_TYPE_NETCORE
             SetBuiltInProperty(ReservedPropertyNames.msbuildRuntimeType,
                 Traits.Instance.ForceEvaluateAsFullFramework ? "Full" : "Core");
-#elif MONO
-            SetBuiltInProperty(ReservedPropertyNames.msbuildRuntimeType,
-                                                        NativeMethodsShared.IsMono ? "Mono" : "Full");
 #else
             SetBuiltInProperty(ReservedPropertyNames.msbuildRuntimeType, "Full");
 #endif
@@ -2304,6 +2301,8 @@ namespace Microsoft.Build.Evaluation
                                 continue;
                             }
 
+                            VerifyVSDistributionPath(importElement.Project, importLocationInProject);
+
                             ProjectErrorUtilities.ThrowInvalidProject(importLocationInProject, "ImportedProjectNotFound",
                                                                       importFileUnescaped, importExpressionEscaped);
                         }
@@ -2577,6 +2576,8 @@ namespace Microsoft.Build.Evaluation
 
             string stringifiedListOfSearchPaths = StringifyList(onlyFallbackSearchPaths);
 
+            VerifyVSDistributionPath(importElement.Project, importElement.ProjectLocation);
+
 #if FEATURE_SYSTEM_CONFIGURATION
             string configLocation = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile;
 
@@ -2638,6 +2639,16 @@ namespace Microsoft.Build.Evaluation
                         : $"{_lastModifiedProject.FullPath}{streamImports};{oldValue.EvaluatedValue}",
                     isGlobalProperty: false,
                     mayBeReserved: false);
+            }
+        }
+
+        [Conditional("FEATURE_GUIDE_TO_VS_ON_UNSUPPORTED_PROJECTS")]
+        private void VerifyVSDistributionPath(string path, ElementLocation importLocationInProject)
+        {
+            if (path.IndexOf("Microsoft\\VisualStudio", StringComparison.OrdinalIgnoreCase) >= 0
+                || path.IndexOf("Microsoft/VisualStudio", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                ProjectErrorUtilities.ThrowInvalidProject(importLocationInProject, "ImportedProjectFromVSDistribution", path);
             }
         }
     }
