@@ -2,7 +2,7 @@
 
   <!-- The .NET Core version of MSBuild doesn't support targeting .NET Framework 3.5.  So in that case, we import
        a .props file that prevents building the project from doing much of anything. -->
-  <Import Project="$(RepoRoot)eng\ProducesNoOutput.Settings.props" Condition="'$(MSBuildRuntimeType)' == 'Core' or '$(MonoBuild)' == 'true'" />
+  <Import Project="$(RepoRoot)eng\ProducesNoOutput.Settings.props" Condition="'$(MSBuildRuntimeType)' == 'Core'" />
 
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
@@ -14,6 +14,7 @@
          This is important for the MSBuild.VSSetup project, which "references" both the x86 and x64
          versions of this project -->
     <RuntimeIdentifiers Condition="'$(DotNetBuildFromSource)' != 'true'">win7-x86;win7-x64</RuntimeIdentifiers>
+    <UseRidGraph>true</UseRidGraph>
 
     <EnableDefaultItems>false</EnableDefaultItems>
     <DefineConstants>$(DefineConstants);CLR2COMPATIBILITY;TASKHOST;NO_FRAMEWORK_IVT</DefineConstants>
@@ -240,7 +241,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\MSBuild.ico" />
+    <Content Include="..\MSBuild\MSBuild.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StringTools\StringTools.csproj" />

@@ -323,7 +323,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <!-- Example, C:\MyProjects\MyProject\bin\Debug\MyAssembly.dll -->
     <TargetPath Condition=" '$(TargetPath)' == '' ">$(TargetDir)$(TargetFileName)</TargetPath>
 
-    <TargetRefPath Condition=" '$(TargetRefPath)' == '' and '$(ProduceReferenceAssembly)' == 'true' and ('$(ProduceReferenceAssemblyInOutDir)' == 'true' or '$([MSBuild]::AreFeaturesEnabled(17.0))' != 'true' ) ">$([MSBuild]::NormalizePath($(TargetDir), 'ref', $(TargetFileName)))</TargetRefPath>
+    <TargetRefPath Condition=" '$(TargetRefPath)' == '' and '$(ProduceReferenceAssembly)' == 'true' and '$(ProduceReferenceAssemblyInOutDir)' == 'true' ">$([MSBuild]::NormalizePath($(TargetDir), 'ref', $(TargetFileName)))</TargetRefPath>
     <TargetRefPath Condition=" '$(TargetRefPath)' == '' and '$(ProduceReferenceAssembly)' == 'true' ">$([MSBuild]::NormalizePath($(MSBuildProjectDirectory), $(IntermediateOutputPath), 'ref', $(TargetFileName)))</TargetRefPath>
 
     <!-- Example, C:\MyProjects\MyProject\ -->
@@ -386,10 +386,17 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <_GenerateBindingRedirectsIntermediateAppConfig>$(IntermediateOutputPath)$(TargetFileName).config</_GenerateBindingRedirectsIntermediateAppConfig>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(MSBuildCopyMarkerName)' == ''">
+    <MSBuildCopyMarkerName>$(MSBuildProjectFile)</MSBuildCopyMarkerName>
+    <!-- For a long MSBuildProjectFile let's shorten this to 17 chars - using the first 8 codepoints of the filename and a filename hash. -->
+    <MSBuildCopyMarkerName Condition="'$(MSBuildCopyMarkerName.Length)' &gt; '17'">$([MSBuild]::SubstringByAsciiChars($(MSBuildProjectFile), 0, 8)).$([MSBuild]::StableStringHash($(MSBuildProjectFile)).ToString("X8"))</MSBuildCopyMarkerName>
+    <MSBuildCopyMarkerName>$(MSBuildCopyMarkerName).Up2Date</MSBuildCopyMarkerName>
+  </PropertyGroup>
+
   <ItemGroup>
     <IntermediateAssembly Include="$(IntermediateOutputPath)$(TargetName)$(TargetExt)"/>
     <FinalDocFile Include="@(DocFileItem->'$(OutDir)%(Filename)%(Extension)')"/>
-    <CopyUpToDateMarker Include="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', '$(MSBuildProjectFile).CopyComplete'))" />
+    <CopyUpToDateMarker Include="$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', '$(MSBuildCopyMarkerName)'))" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(ProduceReferenceAssembly)' == 'true'">
@@ -488,8 +495,8 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <PublishDir Condition="'$(PublishDir)'==''">$(OutputPath)app.publish\</PublishDir>
   </PropertyGroup>
 
-  <!-- 
-    ClickOncePublishDir property is the output location used by all ClickOnce publish targets. This should be same as PublishDir except 
+  <!--
+    ClickOncePublishDir property is the output location used by all ClickOnce publish targets. This should be same as PublishDir except
     for a trailing slash. PublishDir when specified as a global property on the command line cannot be changed to add a trailing slash.
   -->
   <PropertyGroup>
@@ -537,7 +544,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <ProcessorArchitecture Condition="'$(ProcessorArchitecture)'==''">$(PROCESSOR_ARCHITECTURE)</ProcessorArchitecture>
   </PropertyGroup>
 
-  <!-- Sensible defaults for the most-commonly-desired MSBuildRuntime and MSBuildArchitecture values. The Core and Mono runtimes do not currently support specifying task architecture or runtime.
+  <!-- Sensible defaults for the most-commonly-desired MSBuildRuntime and MSBuildArchitecture values. The Core runtime does not currently support specifying task architecture or runtime.
        If support for out-of-proc task execution is added on other runtimes, make sure each task's logic is checked against the current state of support. -->
   <PropertyGroup Condition="'$(DisableOutOfProcTaskHost)' == '' and '$(MSBuildRuntimeType)' == 'Full'">
     <TargetFrameworkAsMSBuildRuntime Condition="'$(TargetFrameworkVersion)' == 'v2.0' or '$(TargetFrameworkVersion)' == 'v3.0' or '$(TargetFrameworkVersion)' == 'v3.5'">CLR2</TargetFrameworkAsMSBuildRuntime>
@@ -1367,6 +1374,18 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <_Temp Remove="@(_Temp)" />
     </ItemGroup>
 
+    <!-- RESOURCE ITEMS -->
+    <AssignLinkMetadata Items="@(Resource)"
+                        Condition="'@(Resource)' != '' and '%(Resource.DefiningProjectFullPath)' != '$(MSBuildProjectFullPath)' and $([MSBuild]::AreFeaturesEnabled('17.10'))">
+      <Output TaskParameter="OutputItems" ItemName="_Temp" />
+    </AssignLinkMetadata>
+
+    <ItemGroup Condition="$([MSBuild]::AreFeaturesEnabled('17.10'))">
+      <Resource Remove="@(_Temp)" />
+      <Resource Include="@(_Temp)" />
+      <_Temp Remove="@(_Temp)" />
+    </ItemGroup>
+
   </Target>
 
   <!--
@@ -1511,6 +1530,24 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     ============================================================
     -->
   <Target Name="AfterResolveReferences"/>
+
+  <!--
+    ============================================================
+                                        IgnoreJavaScriptOutputAssembly
+
+    esproj are JavaScript or TypeScript Projects that never produce an assembly.
+    Set ReferenceOutputAssembly to false in any reference to an esproj.
+    ============================================================
+    -->
+  <Target Name="IgnoreJavaScriptOutputAssembly"
+    BeforeTargets="AssignProjectConfiguration"
+    Condition="$([MSBuild]::AreFeaturesEnabled('17.8'))">
+      <ItemGroup>
+        <ProjectReference Condition="'%(ProjectReference.Extension)' == '.esproj' and '%(ProjectReference.ReferenceOutputAssembly)' == ''">
+          <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+        </ProjectReference>
+      </ItemGroup>
+  </Target>
 
   <!--
     ============================================================
@@ -1692,7 +1729,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
         <SetPlatform>Platform=%(ProjectsWithNearestPlatform.NearestPlatform)</SetPlatform>
       </ProjectsWithNearestPlatform>
 
-      <!-- When GetCompatiblePlatform fails to assign NearestPlatform, undefine Platform and let that project build "on its own" -->
+      <!-- When GetCompatiblePlatform fails to assign NearestPlatform (or determines it's identical to default for the referenced project), undefine Platform and let that project build "on its own" -->
       <ProjectsWithNearestPlatform Condition="'@(ProjectsWithNearestPlatform)' == '%(Identity)' and '%(ProjectsWithNearestPlatform.NearestPlatform)' == ''">
         <UndefineProperties>%(ProjectsWithNearestPlatform.UndefineProperties);Platform</UndefineProperties>
       </ProjectsWithNearestPlatform>
@@ -1805,7 +1842,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
         SkipNonexistentTargets="true">
       <Output TaskParameter="TargetOutputs" ItemName="_ProjectReferenceTargetFrameworkPossibilities" />
     </MSBuild>
-    
+
     <!--
        SetPlatform negotiation requires the 'GetTargetFrameworks' MSBuild call to NOT pass global properties. This is to verify
        whether or not the referenced project would build as the same platform as the current project by default. The above
@@ -1879,7 +1916,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <SetRidAgnosticValueForProjects Projects="@(AnnotatedProjects)">
       <Output ItemName="UpdatedAnnotatedProjects" TaskParameter="UpdatedProjects" />
     </SetRidAgnosticValueForProjects>
-    
+
     <ItemGroup>
       <AnnotatedProjects Remove="@(AnnotatedProjects)" />
       <AnnotatedProjects Include="@(UpdatedAnnotatedProjects)" />
@@ -1980,7 +2017,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
              SelfContained and RuntimeIdentifier should not flow across project references.  The IsRidAgnostic metadata value is consumed in the
              _GetProjectReferenceTargetFrameworkProperties target, where those properties are added to a project's UndefineProperties if
              IsRidAgnostic is set.
-        
+
              Generally we set the IsRidAgnostic metadata based on the IsRidAgnostic property set by the .NET SDK.  If that's not set, then the
              fallback logic here will be that the project is RID agnostic if it doesn't have RuntimeIdentifier or RuntimeIdentifiers properties set. -->
         <IsRidAgnostic>$(IsRidAgnostic)</IsRidAgnostic>
@@ -2476,9 +2513,9 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     ====================================================================================================
   -->
   <Target Name="GenerateBindingRedirects"
-    Inputs="$(MSBuildAllProjects);@(AppConfigWithTargetPath);$(ResolveAssemblyReferencesStateFile);$(SuggestedBindingRedirectsCacheFile)"
+    Inputs="$(MSBuildAllProjects);@(AppConfigWithTargetPath);$(SuggestedBindingRedirectsCacheFile)"
     Outputs="$(_GenerateBindingRedirectsIntermediateAppConfig)"
-    Condition="'$(AutoGenerateBindingRedirects)' == 'true' and '$(GenerateBindingRedirectsOutputType)' == 'true' and '@(SuggestedBindingRedirects)' != ''"
+    Condition="'$(AutoGenerateBindingRedirects)' == 'true' and '$(GenerateBindingRedirectsOutputType)' == 'true' and '@(SuggestedBindingRedirects)' != '' and '$(DesignTimeBuild)' != 'true' and '$(BuildingProject)' == 'true'"
     DependsOnTargets="_GenerateSuggestedBindingRedirectsCache">
 
     <GenerateBindingRedirects
@@ -2507,7 +2544,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <_NewGenerateBindingRedirectsIntermediateAppConfig Condition="Exists('$(_GenerateBindingRedirectsIntermediateAppConfig)')">true</_NewGenerateBindingRedirectsIntermediateAppConfig>
       <AppConfig Condition="$(_NewGenerateBindingRedirectsIntermediateAppConfig) == 'true'">$(_GenerateBindingRedirectsIntermediateAppConfig)</AppConfig>
     </PropertyGroup>
-    
+
     <ItemGroup Condition="$(_NewGenerateBindingRedirectsIntermediateAppConfig) == 'true'">
       <AppConfigWithTargetPath Remove="@(AppConfigWithTargetPath)" />
       <AppConfigWithTargetPath Include="$(AppConfig)">
@@ -2529,7 +2566,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     <SDKReferenceRegistryRoot Condition="'$(SDKReferenceRegistryRoot)' == ''">Software\Microsoft\Microsoft SDKs</SDKReferenceRegistryRoot>
     <SDKReferenceDirectoryRoot Condition="'$(SDKReferenceDirectoryRoot)' == ''">$(LocalAppData)\Microsoft SDKs;$(MSBuildProgramFiles32)\Microsoft SDKs</SDKReferenceDirectoryRoot>
     <!-- Manifest driven extension SDK locations -->
-    <SDKExtensionDirectoryRoot Condition="'$(SDKExtensionDirectoryRoot)' == '' and '$(SDKIdentifier)' != ''">$(MSBuildProgramFiles32)\Microsoft SDKs\Windows Kits\10;$(MSBuildProgramFiles32)\Windows Kits\10</SDKExtensionDirectoryRoot>
+    <SDKExtensionDirectoryRoot Condition="'$(SDKExtensionDirectoryRoot)' == '' and '$(SDKIdentifier)' != ''">$(MSBuildProgramFiles32)\Microsoft SDKs\Windows Kits\10;$(WindowsKitsRoot)</SDKExtensionDirectoryRoot>
 
     <!-- UAP projects by default should support Windows 8.1 SDKs -->
     <SupportWindows81SDKs Condition="'$(SupportWindows81SDKs)' == '' and '$(Support81SDKs)' != 'false' and '$(TargetPlatformIdentifier)' == 'UAP'">true</SupportWindows81SDKs>
@@ -3024,6 +3061,40 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
   </Target>
 
+    <!--
+    ============================================================
+                                        _GetAssembliesMetadata
+
+    Resolve Assembly attributes for assemblies
+    The ResolveComReferences dependency is needed for defining COM-referenced wrappers only,
+    but this target handles all the assembly references from ResolveAssemblyReferences
+    This target is needed by the Visual Studio legacy project system during design time build only
+
+        [IN]
+        @(ReferencePath) - Paths to COM-referenced wrappers and other types of assembly references.
+
+        [OUT]
+        @(AssembliesMetadata) - Resolved assemblies attributes.
+    ============================================================
+    -->
+
+  <Target
+      Name="_GetAssembliesMetadata"
+      Condition="'@(ReferencePath)'!=''and '$(DesignTimeBuild)' == 'true' "
+      Returns="@(_AssembliesMetadata)"
+      DependsOnTargets="ResolveComReferences"
+        >
+
+    <GetAssembliesMetadata
+          AssemblyPaths="@(ReferencePath)"
+          ContinueOnError="$(ContinueOnError)">
+
+      <Output TaskParameter="AssembliesMetadata" ItemName="_AssembliesMetadata"/>
+
+    </GetAssembliesMetadata>
+
+  </Target>
+
   <Target
       Name="ResolveComReferencesDesignTime"
       Returns="@(ComReferenceWrappers)"
@@ -3173,6 +3244,10 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       Name="SplitResourcesByCulture"
       DependsOnTargets="AssignTargetPaths">
 
+    <PropertyGroup>
+      <RespectAlreadyAssignedItemCulture Condition="'$(RespectAlreadyAssignedItemCulture)' == ''">false</RespectAlreadyAssignedItemCulture>
+    </PropertyGroup>
+
     <Warning Condition="'@(ResxWithNoCulture)'!=''" Code="MSB9000" Text="ResxWithNoCulture item type is deprecated. Use EmbeddedResource items instead."/>
     <Warning Condition="'@(ResxWithCulture)'!=''" Code="MSB9001" Text="ResxWithCulture item type is deprecated. Use EmbeddedResource items instead."/>
     <Warning Condition="'@(NonResxWithCulture)'!=''" Code="MSB9002" Text="NonResxWithCulture item type is deprecated. Use EmbeddedResource items instead."/>
@@ -3190,7 +3265,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       </EmbeddedResource>
     </ItemGroup>
 
-    <AssignCulture Files="@(EmbeddedResource)" Condition="'%(Extension)'!='.licx'">
+    <AssignCulture Files="@(EmbeddedResource)" Condition="'%(Extension)'!='.licx'"  RespectAlreadyAssignedItemCulture="$(RespectAlreadyAssignedItemCulture)">
       <!-- Create the list of culture resx and embedded resource files -->
       <Output TaskParameter="AssignedFilesWithCulture" ItemName="_MixedResourceWithCulture"/>
       <!-- Create the list of non-culture resx and embedded resource files -->
@@ -3728,6 +3803,9 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <CoreCompileCache Include="@(Compile)" />
       <CoreCompileCache Include="@(ReferencePath)" />
       <CoreCompileCache Include="$(DefineConstants)" />
+      <CoreCompileCache Include="$(LangVersion)" />
+      <CoreCompileCache Include="$(Deterministic)" />
+      <CoreCompileCache Include="$(PathMap)" />
     </ItemGroup>
 
     <Hash
@@ -3877,6 +3955,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     -->
   <PropertyGroup>
     <CreateSatelliteAssembliesDependsOn>
+      $(CreateSatelliteAssembliesDependsOn);
       _GenerateSatelliteAssemblyInputs;
       ComputeIntermediateSatelliteAssemblies;
       GenerateSatelliteAssemblies
@@ -4356,14 +4435,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
   </Target>
 
-  <PropertyGroup>
-    <DeploymentComputeClickOnceManifestInfoDependsOn>
-      CleanPublishFolder;
-      _DeploymentGenerateTrustInfo
-      $(DeploymentComputeClickOnceManifestInfoDependsOn)
-    </DeploymentComputeClickOnceManifestInfoDependsOn>
-  </PropertyGroup>
-
   <!--
     ============================================================
                                         _DeploymentComputeClickOnceManifestInfo
@@ -4422,7 +4493,44 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <_ClickOnceRuntimeCopyLocalItems Include="@(NativeCopyLocalItems)"
                                       Condition="'%(NativeCopyLocalItems.CopyLocal)' == 'true'" />
       <_ClickOnceRuntimeCopyLocalItems Remove="@(_DeploymentReferencePaths)" />
-      <_ClickOnceFiles Include="@(ContentWithTargetPath);@(_DeploymentManifestIconFile);@(AppConfigWithTargetPath);@(NetCoreRuntimeJsonFilesForClickOnce);@(_ClickOnceRuntimeCopyLocalItems)"/>
+
+      <!--
+        For .NET>=5, we need to check if we need to publish any content items from transitive project references. For such items to be published, they
+        either have the .exe/.dll extension or their publish status has been overriden in VS so they will show up in the PublishFiles collection.
+        The PublishProtocol property is available only in .NET>=5 so we will used that to exclude .NET FX 4.X case.
+      -->
+      <_ClickOnceTransitiveContentItemsTemp Include="@(_TransitiveItemsToCopyToOutputDirectory->WithoutMetadataValue('CopyToPublishDirectory', 'Never')->'%(TargetPath)')" Condition="'$(PublishProtocol)' == 'ClickOnce'" >
+        <SavedIdentity>%(Identity)</SavedIdentity>
+      </_ClickOnceTransitiveContentItemsTemp>
+      <_ClickOnceTransitiveContentItems Include="@(_ClickOnceTransitiveContentItemsTemp->'%(SavedIdentity)')" Condition="'%(Identity)'=='@(PublishFile)' Or '%(Extension)'=='.exe' Or '%(Extension)'=='.dll'" />
+
+      <!-- 
+        ClickOnce content items is union of transitive content items and content items from this project.
+        We also exclude content items from this project that have set CopyToPublishDirectory to Never.
+      -->
+      <_ClickOnceContentItems Include="@(ContentWithTargetPath->WithoutMetadataValue('CopyToPublishDirectory', 'Never'))" />
+      <_ClickOnceContentItems Include="@(_ClickOnceTransitiveContentItems)" />
+
+      <!--
+        For .NET>=5, we need to check if we need to publish any copylocal items from None group. For such items to be published, they either
+        have .exe/.dll extension or their publish status has been overriden in VS so they will show up in the PublishFiles collection.
+        The PublishProtocol property is available only in .NET>=5 so we will used that to exclude .NET FX 4.X case.
+      -->
+      <!-- Include items from None group for publishing -->
+      <_ClickOnceNoneItemsTemp Include="@(_NoneWithTargetPath->WithoutMetadataValue('CopyToPublishDirectory', 'Never')->'%(TargetPath)')" Condition="'$(PublishProtocol)'=='Clickonce' And ('%(_NoneWithTargetPath.CopyToOutputDirectory)'=='Always' or '%(_NoneWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest')">
+        <SavedIdentity>%(Identity)</SavedIdentity>
+      </_ClickOnceNoneItemsTemp>
+      <_ClickOnceNoneItems Include="@(_ClickOnceNoneItemsTemp->'%(SavedIdentity)')" Condition="'%(Identity)'=='@(PublishFile)' Or '%(Extension)'=='.exe' Or '%(Extension)'=='.dll'" />
+
+      <_ClickOnceFiles Include="@(_ClickOnceContentItems);@(_DeploymentManifestIconFile);@(AppConfigWithTargetPath);@(NetCoreRuntimeJsonFilesForClickOnce);@(_ClickOnceRuntimeCopyLocalItems);@(_ClickOnceNoneItems)" />
+
+      <!-- clear temporary item groups to free memory -->
+      <_ClickOnceNoneItemsTemp Remove="@(_ClickOnceNoneItemsTemp)"/>
+      <_ClickOnceNoneItems Remove="@(_ClickOnceNoneItems)"/>
+      <_ClickOnceTransitiveContentItemsTemp Remove="@(_ClickOnceTransitiveContentItemsTemp)"/>
+      <_ClickOnceTransitiveContentItems Remove="@(_ClickOnceTransitiveContentItems)"/>
+      <_ClickOnceContentItems Remove="@(_ClickOnceContentItems)"/>
+      <_ClickOnceRuntimeCopyLocalItems Remove="@(_ClickOnceRuntimeCopyLocalItems)"/>
     </ItemGroup>
 
     <!-- For single file publish, we need to include the SF bundle EXE, application icon file and files excluded from the bundle EXE in the clickonce manifest -->
@@ -4939,7 +5047,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       This target enforces the dependency.
     -->
 
-    <MSBuildCopyContentTransitively Condition=" '$(MSBuildCopyContentTransitively)' == '' and $([MSBuild]::AreFeaturesEnabled('17.0'))">true</MSBuildCopyContentTransitively>
+    <MSBuildCopyContentTransitively Condition=" '$(MSBuildCopyContentTransitively)' == ''">true</MSBuildCopyContentTransitively>
 
     <_TargetsThatPrepareProjectReferences Condition=" '$(MSBuildCopyContentTransitively)' == 'true' ">
       AssignProjectConfiguration;
@@ -4978,7 +5086,7 @@ Copyright (C) Microsoft Corporation. All rights reserved.
   <Target
     Name="_GetCopyToOutputDirectoryItemsFromTransitiveProjectReferences"
     DependsOnTargets="_PopulateCommonStateForGetCopyToOutputDirectoryItems;_AddOutputPathToGlobalPropertiesToRemove"
-    Returns="@(_TransitiveItemsToCopyToOutputDirectory)">
+    Returns="@(_CopyToOutputDirectoryTransitiveItems)">
 
     <!-- Get items from child projects first. -->
     <MSBuild
@@ -4997,8 +5105,8 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
     <!-- Target outputs must be full paths because they will be consumed by a different project. -->
     <ItemGroup>
-      <_TransitiveItemsToCopyToOutputDirectory   KeepDuplicates=" '$(_GCTODIKeepDuplicates)' != 'false' " KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_AllChildProjectItemsWithTargetPath->'%(FullPath)')" Condition="'%(_AllChildProjectItemsWithTargetPath.CopyToOutputDirectory)'=='Always'"/>
-      <_TransitiveItemsToCopyToOutputDirectory   KeepDuplicates=" '$(_GCTODIKeepDuplicates)' != 'false' " KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_AllChildProjectItemsWithTargetPath->'%(FullPath)')" Condition="'%(_AllChildProjectItemsWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest'"/>
+      <_CopyToOutputDirectoryTransitiveItems   KeepDuplicates=" '$(_GCTODIKeepDuplicates)' != 'false' " KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_AllChildProjectItemsWithTargetPath->'%(FullPath)')" Condition="'%(_AllChildProjectItemsWithTargetPath.CopyToOutputDirectory)'=='Always'"/>
+      <_CopyToOutputDirectoryTransitiveItems   KeepDuplicates=" '$(_GCTODIKeepDuplicates)' != 'false' " KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_AllChildProjectItemsWithTargetPath->'%(FullPath)')" Condition="'%(_AllChildProjectItemsWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest'"/>
     </ItemGroup>
 
     <!-- Remove items which we will never again use - they just sit around taking up memory otherwise -->
@@ -5008,13 +5116,13 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
     <!-- Copy paste _GetCopyToOutputDirectoryItemsFromThisProject but keep the items that came from other projects via ProjectReference's OutputItemType metadata -->
     <ItemGroup>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(ContentWithTargetPath->'%(FullPath)')" Condition="'%(ContentWithTargetPath.CopyToOutputDirectory)'=='Always' AND '%(ContentWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(ContentWithTargetPath->'%(FullPath)')" Condition="'%(ContentWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest' AND '%(ContentWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(ContentWithTargetPath->'%(FullPath)')" Condition="'%(ContentWithTargetPath.CopyToOutputDirectory)'=='Always' AND '%(ContentWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(ContentWithTargetPath->'%(FullPath)')" Condition="'%(ContentWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest' AND '%(ContentWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
     </ItemGroup>
 
     <ItemGroup>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(EmbeddedResource->'%(FullPath)')" Condition="'%(EmbeddedResource.CopyToOutputDirectory)'=='Always' AND '%(EmbeddedResource.MSBuildSourceProjectFile)'!=''"/>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(EmbeddedResource->'%(FullPath)')" Condition="'%(EmbeddedResource.CopyToOutputDirectory)'=='PreserveNewest' AND '%(EmbeddedResource.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(EmbeddedResource->'%(FullPath)')" Condition="'%(EmbeddedResource.CopyToOutputDirectory)'=='Always' AND '%(EmbeddedResource.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(EmbeddedResource->'%(FullPath)')" Condition="'%(EmbeddedResource.CopyToOutputDirectory)'=='PreserveNewest' AND '%(EmbeddedResource.MSBuildSourceProjectFile)'!=''"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -5026,13 +5134,13 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     </AssignTargetPath>
 
     <ItemGroup>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_CompileItemsToCopyWithTargetPath)" Condition="'%(_CompileItemsToCopyWithTargetPath.CopyToOutputDirectory)'=='Always'"/>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_CompileItemsToCopyWithTargetPath)" Condition="'%(_CompileItemsToCopyWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest'"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_CompileItemsToCopyWithTargetPath)" Condition="'%(_CompileItemsToCopyWithTargetPath.CopyToOutputDirectory)'=='Always'"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_CompileItemsToCopyWithTargetPath)" Condition="'%(_CompileItemsToCopyWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest'"/>
     </ItemGroup>
 
     <ItemGroup>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_NoneWithTargetPath->'%(FullPath)')" Condition="'%(_NoneWithTargetPath.CopyToOutputDirectory)'=='Always' AND '%(_NoneWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
-      <_TransitiveItemsToCopyToOutputDirectory       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_NoneWithTargetPath->'%(FullPath)')" Condition="'%(_NoneWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest' AND '%(_NoneWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_NoneWithTargetPath->'%(FullPath)')" Condition="'%(_NoneWithTargetPath.CopyToOutputDirectory)'=='Always' AND '%(_NoneWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
+      <_CopyToOutputDirectoryTransitiveItems       KeepMetadata="$(_GCTODIKeepMetadata)" Include="@(_NoneWithTargetPath->'%(FullPath)')" Condition="'%(_NoneWithTargetPath.CopyToOutputDirectory)'=='PreserveNewest' AND '%(_NoneWithTargetPath.MSBuildSourceProjectFile)'!=''"/>
     </ItemGroup>
 
   </Target>
@@ -5108,7 +5216,6 @@ Copyright (C) Microsoft Corporation. All rights reserved.
       <!-- Empty intermediate items to release memory -->
       <_TransitiveItemsToCopyToOutputDirectoryAlways               Remove="@(_TransitiveItemsToCopyToOutputDirectoryAlways)"/>
       <_TransitiveItemsToCopyToOutputDirectoryPreserveNewest       Remove="@(_TransitiveItemsToCopyToOutputDirectoryPreserveNewest)"/>
-      <_TransitiveItemsToCopyToOutputDirectory                     Remove="@(_TransitiveItemsToCopyToOutputDirectory)"/>
 
       <_ThisProjectItemsToCopyToOutputDirectoryAlways              Remove="@(_ThisProjectItemsToCopyToOutputDirectoryAlways)"/>
       <_ThisProjectItemsToCopyToOutputDirectoryPreserveNewest      Remove="@(_ThisProjectItemsToCopyToOutputDirectoryPreserveNewest)"/>
@@ -5786,6 +5893,15 @@ Copyright (C) Microsoft Corporation. All rights reserved.
     ***********************************************************************************************
     ***********************************************************************************************
     -->
+
+  <PropertyGroup>
+    <DeploymentComputeClickOnceManifestInfoDependsOn>
+      CleanPublishFolder;
+      $(_RecursiveTargetForContentCopying);
+      _DeploymentGenerateTrustInfo
+      $(DeploymentComputeClickOnceManifestInfoDependsOn)
+    </DeploymentComputeClickOnceManifestInfoDependsOn>
+  </PropertyGroup>
 
   <!--
     ============================================================
@@ -6708,6 +6824,10 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
   <Import Project="$(MsTestToolsTargets)" Condition="Exists('$(MsTestToolsTargets)')" />
 
+  <PropertyGroup>
+    <UseMSBuildTestInfrastructure Condition="'$(UseMSBuildTestInfrastructure)' == ''">false</UseMSBuildTestInfrastructure>
+  </PropertyGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.Test.targets" Condition="'$(UseMSBuildTestInfrastructure)' == 'true'"/>
   <!-- App packaging support -->
 
   <!--
@@ -6740,5 +6860,4 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.targets\ImportAfter\*" Condition="'$(ImportByWildcardAfterMicrosoftCommonTargets)' == 'true' and exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.targets\ImportAfter')"/>
   <Import Project="$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.targets\ImportAfter\*" Condition="'$(ImportUserLocationsByWildcardAfterMicrosoftCommonTargets)' == 'true' and exists('$(MSBuildUserExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.targets\ImportAfter')"/>
-
 </Project>

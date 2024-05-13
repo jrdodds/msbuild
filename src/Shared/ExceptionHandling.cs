@@ -79,6 +79,11 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal static string DebugDumpPath => s_debugDumpPath;
 
+        /// <summary>
+        /// The file used for diagnostic log files.
+        /// </summary>
+        internal static string DumpFilePath => s_dumpFileName;
+
 #if !BUILDINGAPPXTASKS
         /// <summary>
         /// The filename that exceptions will be dumped to
@@ -99,6 +104,9 @@ namespace Microsoft.Build.Shared
              || e is ThreadAbortException
              || e is ThreadInterruptedException
              || e is AccessViolationException
+#if !TASKHOST
+             || e is CriticalTaskException
+#endif
 #if !BUILDINGAPPXTASKS
              || e is InternalErrorException
 #endif
@@ -167,7 +175,9 @@ namespace Microsoft.Build.Shared
         internal static bool IsXmlException(Exception e)
         {
             return e is XmlException
-                || e is XmlSyntaxException
+#if FEATURE_SECURITY_PERMISSIONS
+                || e is System.Security.XmlSyntaxException
+#endif
                 || e is XmlSchemaException
                 || e is UriFormatException; // XmlTextReader for example uses this under the covers
         }

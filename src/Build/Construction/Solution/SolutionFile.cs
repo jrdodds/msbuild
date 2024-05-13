@@ -1259,7 +1259,7 @@ namespace Microsoft.Build.Construction
 
             // If the project name is empty (as in some bad solutions) set it to some generated generic value.
             // This allows us to at least generate reasonable target names etc. instead of crashing.
-            if (string.IsNullOrEmpty(proj.ProjectName))
+            if (String.IsNullOrEmpty(proj.ProjectName))
             {
                 proj.ProjectName = "EmptyProjectName." + Guid.NewGuid();
             }
@@ -1638,5 +1638,5 @@ namespace Microsoft.Build.Construction
         }
 
         #endregion
-    } // class SolutionParser
+    } // class SolutionFile
 } // namespace Microsoft.Build.Construction

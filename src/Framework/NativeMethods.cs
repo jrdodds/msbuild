@@ -35,6 +35,7 @@ internal static class NativeMethods
     internal const uint RUNTIME_INFO_DONT_SHOW_ERROR_DIALOG = 0x40;
     internal const uint FILE_TYPE_CHAR = 0x0002;
     internal const Int32 STD_OUTPUT_HANDLE = -11;
+    internal const Int32 STD_ERROR_HANDLE = -12;
     internal const uint ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
     internal const uint RPC_S_CALLPENDING = 0x80010115;
     internal const uint E_ABORT = (uint)0x80004004;
@@ -75,6 +76,12 @@ internal static class NativeMethods
     #endregion
 
     #region Enums
+
+    internal enum StreamHandleType
+    {
+        StdOut = STD_OUTPUT_HANDLE,
+        StdErr = STD_ERROR_HANDLE,
+    };
 
     private enum PROCESSINFOCLASS : int
     {
@@ -207,7 +214,7 @@ internal static class NativeMethods
         // 32-bit ARMv6
         ARMV6,
 
-        // PowerPC 64-bit (little-endian) 
+        // PowerPC 64-bit (little-endian)
         PPC64LE,
 
         // Who knows
@@ -483,7 +490,6 @@ internal static class NativeMethods
     public static int GetLogicalCoreCount()
     {
         int numberOfCpus = Environment.ProcessorCount;
-#if !MONO
         // .NET on Windows returns a core count limited to the current NUMA node
         //     https://github.com/dotnet/runtime/issues/29686
         // so always double-check it.
@@ -495,7 +501,6 @@ internal static class NativeMethods
                 numberOfCpus = result;
             }
         }
-#endif
 
         return numberOfCpus;
     }
@@ -654,37 +659,6 @@ internal static class NativeMethods
 #endif
     }
 
-    private static readonly object IsMonoLock = new object();
-
-    private static bool? _isMono;
-
-    /// <summary>
-    /// Gets a flag indicating if we are running under MONO
-    /// </summary>
-    internal static bool IsMono
-    {
-        get
-        {
-            if (_isMono != null)
-            {
-                return _isMono.Value;
-            }
-
-            lock (IsMonoLock)
-            {
-                if (_isMono == null)
-                {
-                    // There could be potentially expensive TypeResolve events, so cache IsMono.
-                    // Also, VS does not host Mono runtimes, so turn IsMono off when msbuild is running under VS
-                    _isMono = !BuildEnvironmentState.s_runningInVisualStudio &&
-                              Type.GetType("Mono.Runtime") != null;
-                }
-            }
-
-            return _isMono.Value;
-        }
-    }
-
 #if !CLR2COMPATIBILITY
     private static bool? _isWindows;
 #endif
@@ -743,8 +717,6 @@ internal static class NativeMethods
         {
 #if RUNTIME_TYPE_NETCORE
             const string frameworkName = ".NET";
-#elif MONO
-            const string frameworkName = "Mono";
 #else
             const string frameworkName = ".NET Framework";
 #endif
@@ -1229,14 +1201,13 @@ internal static class NativeMethods
 
             // Grab the process handle.  We want to keep this open for the duration of the function so that
             // it cannot be reused while we are running.
-            SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processIdToKill);
-            if (hProcess.IsInvalid)
+            using (SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processIdToKill))
             {
-                return;
-            }
+                if (hProcess.IsInvalid)
+                {
+                    return;
+                }
 
-            try
-            {
                 try
                 {
                     // Kill this process, so that no further children can be created.
@@ -1267,11 +1238,6 @@ internal static class NativeMethods
                     }
                 }
             }
-            finally
-            {
-                // Release the handle.  After this point no more children of this process exist and this process has also exited.
-                hProcess.Dispose();
-            }
         }
         finally
         {
@@ -1300,7 +1266,7 @@ internal static class NativeMethods
                 // using (var r = FileUtilities.OpenRead("/proc/" + processId + "/stat"))
                 // and could be again when FileUtilities moves to Framework
 
-                using var fileStream = new FileStream("/proc/" + processId + "/stat", FileMode.Open, FileAccess.Read);
+                using var fileStream = new FileStream("/proc/" + processId + "/stat", FileMode.Open, System.IO.FileAccess.Read);
                 using StreamReader r = new(fileStream);
 
                 line = r.ReadLine();
@@ -1324,11 +1290,9 @@ internal static class NativeMethods
         else
 #endif
         {
-            SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processId);
-
-            if (!hProcess.IsInvalid)
+            using SafeProcessHandle hProcess = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, processId);
             {
-                try
+                if (!hProcess.IsInvalid)
                 {
                     // UNDONE: NtQueryInformationProcess will fail if we are not elevated and other process is. Advice is to change to use ToolHelp32 API's
                     // For now just return zero and worst case we will not kill some children.
@@ -1339,10 +1303,6 @@ internal static class NativeMethods
                     {
                         ParentID = (int)pbi.InheritedFromUniqueProcessId;
                     }
-                }
-                finally
-                {
-                    hProcess.Dispose();
                 }
             }
         }
@@ -1365,34 +1325,38 @@ internal static class NativeMethods
             {
                 // Hold the child process handle open so that children cannot die and restart with a different parent after we've started looking at it.
                 // This way, any handle we pass back is guaranteed to be one of our actual children.
+#pragma warning disable CA2000 // Dispose objects before losing scope - caller must dispose returned handles
                 SafeProcessHandle childHandle = OpenProcess(eDesiredAccess.PROCESS_QUERY_INFORMATION, false, possibleChildProcess.Id);
-                if (childHandle.IsInvalid)
+#pragma warning restore CA2000 // Dispose objects before losing scope
                 {
-                    continue;
-                }
-
-                bool keepHandle = false;
-                try
-                {
-                    if (possibleChildProcess.StartTime > parentStartTime)
+                    if (childHandle.IsInvalid)
                     {
-                        int childParentProcessId = GetParentProcessId(possibleChildProcess.Id);
-                        if (childParentProcessId != 0)
+                        continue;
+                    }
+
+                    bool keepHandle = false;
+                    try
+                    {
+                        if (possibleChildProcess.StartTime > parentStartTime)
                         {
-                            if (parentProcessId == childParentProcessId)
+                            int childParentProcessId = GetParentProcessId(possibleChildProcess.Id);
+                            if (childParentProcessId != 0)
                             {
-                                // Add this one
-                                myChildren.Add(new KeyValuePair<int, SafeProcessHandle>(possibleChildProcess.Id, childHandle));
-                                keepHandle = true;
+                                if (parentProcessId == childParentProcessId)
+                                {
+                                    // Add this one
+                                    myChildren.Add(new KeyValuePair<int, SafeProcessHandle>(possibleChildProcess.Id, childHandle));
+                                    keepHandle = true;
+                                }
                             }
                         }
                     }
-                }
-                finally
-                {
-                    if (!keepHandle)
+                    finally
                     {
-                        childHandle.Dispose();
+                        if (!keepHandle)
+                        {
+                            childHandle.Dispose();
+                        }
                     }
                 }
             }
@@ -1481,11 +1445,11 @@ internal static class NativeMethods
     }
 
 #if !CLR2COMPATIBILITY
-    internal static (bool acceptAnsiColorCodes, bool outputIsScreen, uint? originalConsoleMode) QueryIsScreenAndTryEnableAnsiColorCodes()
+    internal static (bool acceptAnsiColorCodes, bool outputIsScreen, uint? originalConsoleMode) QueryIsScreenAndTryEnableAnsiColorCodes(StreamHandleType handleType = StreamHandleType.StdOut)
     {
         if (Console.IsOutputRedirected)
         {
-            // There's no ANSI terminal support is console output is redirected.
+            // There's no ANSI terminal support if console output is redirected.
             return (acceptAnsiColorCodes: false, outputIsScreen: false, originalConsoleMode: null);
         }
 
@@ -1496,8 +1460,8 @@ internal static class NativeMethods
         {
             try
             {
-                IntPtr stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-                if (GetConsoleMode(stdOut, out uint consoleMode))
+                IntPtr outputStream = GetStdHandle((int)handleType);
+                if (GetConsoleMode(outputStream, out uint consoleMode))
                 {
                     if ((consoleMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == ENABLE_VIRTUAL_TERMINAL_PROCESSING)
                     {
@@ -1508,7 +1472,7 @@ internal static class NativeMethods
                     {
                         originalConsoleMode = consoleMode;
                         consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-                        if (SetConsoleMode(stdOut, consoleMode) && GetConsoleMode(stdOut, out consoleMode))
+                        if (SetConsoleMode(outputStream, consoleMode) && GetConsoleMode(outputStream, out consoleMode))
                         {
                             // We only know if vt100 is supported if the previous call actually set the new flag, older
                             // systems ignore the setting.
@@ -1516,7 +1480,7 @@ internal static class NativeMethods
                         }
                     }
 
-                    uint fileType = GetFileType(stdOut);
+                    uint fileType = GetFileType(outputStream);
                     // The std out is a char type (LPT or Console).
                     outputIsScreen = fileType == FILE_TYPE_CHAR;
                     acceptAnsiColorCodes &= outputIsScreen;
@@ -1532,16 +1496,16 @@ internal static class NativeMethods
             // On posix OSes we expect console always supports VT100 coloring unless it is explicitly marked as "dumb".
             acceptAnsiColorCodes = Environment.GetEnvironmentVariable("TERM") != "dumb";
             // It wasn't redirected as tested above so we assume output is screen/console
-            outputIsScreen = true; 
+            outputIsScreen = true;
         }
         return (acceptAnsiColorCodes, outputIsScreen, originalConsoleMode);
     }
 
-    internal static void RestoreConsoleMode(uint? originalConsoleMode)
+    internal static void RestoreConsoleMode(uint? originalConsoleMode, StreamHandleType handleType = StreamHandleType.StdOut)
     {
         if (IsWindows && originalConsoleMode is not null)
         {
-            IntPtr stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+            IntPtr stdOut = GetStdHandle((int)handleType);
             _ = SetConsoleMode(stdOut, originalConsoleMode.Value);
         }
     }
