@@ -269,7 +269,7 @@ EndGlobal
                 }
                 finally
                 {
-                    Environment.SetEnvironmentVariable("MSBuildSolutionBatchTargets", "");
+                    Environment.SetEnvironmentVariable("MSBuildSolutionBatchTargets", null);
                 }
             }
         }
@@ -1264,7 +1264,7 @@ EndGlobal
                 }
                 else
                 {
-                    Assert.True(false, "Unexpected project seen:" + item.ItemSpec);
+                    Assert.Fail("Unexpected project seen:" + item.ItemSpec);
                 }
             }
         }
@@ -1881,7 +1881,7 @@ EndGlobal
                 ";
 
             SolutionFile solution = null;
-            ProjectCollection collection = new ProjectCollection();
+            using ProjectCollection collection = new ProjectCollection();
 
             try
             {
@@ -1910,7 +1910,7 @@ EndGlobal
                 }
                 else
                 {
-                    Assert.True(false, "Something went really wrong!  The SolutionFile wasn't even created!");
+                    Assert.Fail("Something went really wrong!  The SolutionFile wasn't even created!");
                 }
             }
         }
@@ -2076,6 +2076,7 @@ EndGlobal
                 {
                     NodeProviderInProc nodeProviderInProc = ((IBuildComponentHost)buildManager).GetComponent(BuildComponentType.InProcNodeProvider) as NodeProviderInProc;
                     nodeProviderInProc.Dispose();
+                    buildManager.Dispose();
                 }
             }
         }
@@ -2163,6 +2164,7 @@ EndGlobal
                 {
                     NodeProviderInProc nodeProviderInProc = ((IBuildComponentHost)buildManager).GetComponent(BuildComponentType.InProcNodeProvider) as NodeProviderInProc;
                     nodeProviderInProc.Dispose();
+                    buildManager.Dispose();
                 }
             }
         }
@@ -2225,7 +2227,7 @@ EndGlobal
                 globalProperties["SkipInvalidConfigurations"] = "true";
 
                 SolutionFile solution = SolutionFile_Tests.ParseSolutionHelper(solutionFileContents.Replace('\'', '"'));
-                ProjectCollection collection = new ProjectCollection();
+                using ProjectCollection collection = new ProjectCollection();
                 collection.RegisterLogger(logger);
 
 #pragma warning disable format
@@ -2760,7 +2762,7 @@ EndProject";
                 }
             }
 
-            Assert.True(false);
+            Assert.Fail();
         }
 
         /// <summary>
