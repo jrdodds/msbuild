@@ -4,11 +4,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using FluentAssertions;
 using Microsoft.Build.BackEnd;
+using Microsoft.Build.Experimental.BuildCheck;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.Logging;
@@ -43,7 +45,7 @@ namespace Microsoft.Build.UnitTests
             binaryWriter.Flush();
 
             outputStream.Position = 0;
-            BinaryReader binaryReader = new BinaryReader(outputStream);
+            using BinaryReader binaryReader = new BinaryReader(outputStream);
             Assert.Equal(BinaryLogRecordKind.ProjectImportArchive, (BinaryLogRecordKind)binaryReader.Read7BitEncodedInt());
             Assert.Equal(bytes.Length, binaryReader.Read7BitEncodedInt());
             Assert.Equal(bytes, binaryReader.ReadBytes(bytes.Length));
@@ -93,6 +95,45 @@ namespace Microsoft.Build.UnitTests
             Roundtrip(args,
                 e => ToString(e.BuildEventContext),
                 e => e.Succeeded.ToString());
+        }
+
+        [Fact]
+        public void RoundtripBuildSubmissionStartedEventArgs()
+        {
+            var globalVariables = new Dictionary<string, string>
+            {
+                {"Variable1", "Value1" },
+                {"Variable2", "" },
+                {"Variable3", null },
+            };
+            var entryPointProjects = new List<string>()
+            {
+                "project1",
+                "project2",
+                "",
+            };
+            var targetNames = new List<string>()
+            {
+                "target1",
+                "target2",
+                "",
+            };
+            var flag = Execution.BuildRequestDataFlags.FailOnUnresolvedSdk;
+            var submissionId = 1234;
+
+            BuildSubmissionStartedEventArgs args = new(
+                globalVariables,
+                entryPointProjects,
+                targetNames,
+                flag,
+                submissionId);
+
+            Roundtrip<BuildSubmissionStartedEventArgs>(args,
+                e => TranslationHelpers.GetPropertiesString(e.GlobalProperties),
+                e => TranslationHelpers.GetPropertiesString(e.EntryProjectsFullPath),
+                e => TranslationHelpers.GetPropertiesString(e.TargetNames),
+                e => e.Flags.ToString(),
+                e => e.SubmissionId.ToString());
         }
 
         [Fact]
@@ -209,7 +250,7 @@ namespace Microsoft.Build.UnitTests
         [Fact]
         public void RoundtripEnvironmentVariableReadEventArgs()
         {
-            EnvironmentVariableReadEventArgs args = new("VarName", "VarValue");
+            EnvironmentVariableReadEventArgs args = new("VarName", "VarValue", "file", 10, 20);
             args.BuildEventContext = new BuildEventContext(4, 5, 6, 7);
             Roundtrip(args,
                 e => e.Message,
@@ -491,6 +532,27 @@ namespace Microsoft.Build.UnitTests
                 e => string.Join(", ", e.RawArguments ?? Array.Empty<object>()));
         }
 
+        [Fact]
+        public void RoundtripBuildCheckTracingEventArgs()
+        {
+            string key1 = "AA";
+            TimeSpan span1 = TimeSpan.FromSeconds(5);
+            string key2 = "b";
+            TimeSpan span2 = TimeSpan.FromSeconds(15);
+            string key3 = "cCc";
+            TimeSpan span3 = TimeSpan.FromSeconds(50);
+
+            Dictionary<string, TimeSpan> stats = new() { { key1, span1 }, { key2, span2 }, { key3, span3 } };
+
+            BuildCheckTracingEventArgs args = new BuildCheckTracingEventArgs(stats);
+
+            Roundtrip(args,
+                e => e.TracingData.InfrastructureTracingData.Keys.Count.ToString(),
+                e => e.TracingData.InfrastructureTracingData.Keys.ToCsvString(false),
+                e => e.TracingData.InfrastructureTracingData.Values
+                    .Select(v => v.TotalSeconds.ToString(CultureInfo.InvariantCulture)).ToCsvString(false));
+        }
+
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -511,12 +573,12 @@ namespace Microsoft.Build.UnitTests
 
 
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
             buildEventArgsWriter.Write(args);
 
             memoryStream.Position = 0;
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
 
             using var buildEventArgsReader = new BuildEventArgsReader(binaryReader, BinaryLogger.FileFormatVersion);
             var deserialized = buildEventArgsReader.Read();
@@ -650,12 +712,14 @@ namespace Microsoft.Build.UnitTests
                 new TaskItemData("ItemSpec1", null),
                 new TaskItemData("ItemSpec2", Enumerable.Range(1,3).ToDictionary(i => i.ToString(), i => i.ToString() + "value"))
             };
-            var args = new TaskParameterEventArgs(TaskParameterMessageKind.TaskOutput, "ItemName", items, true, DateTime.MinValue);
+            var args = new TaskParameterEventArgs(TaskParameterMessageKind.TaskOutput, "ParameterName1", "PropertyName1", "ItemName1", items, true, DateTime.MinValue);
             args.LineNumber = 265;
             args.ColumnNumber = 6;
 
             Roundtrip(args,
                 e => e.Kind.ToString(),
+                e => e.ParameterName,
+                e => e.PropertyName,
                 e => e.ItemType,
                 e => e.LogItemMetadata.ToString(),
                 e => e.LineNumber.ToString(),
@@ -799,22 +863,6 @@ namespace Microsoft.Build.UnitTests
         }
 
         [Fact]
-        public void RoundTripEnvironmentVariableReadEventArgs()
-        {
-            var args = new EnvironmentVariableReadEventArgs(
-                environmentVariableName: Guid.NewGuid().ToString(),
-                message: Guid.NewGuid().ToString(),
-                helpKeyword: Guid.NewGuid().ToString(),
-                senderName: Guid.NewGuid().ToString());
-
-            Roundtrip(args,
-                e => e.EnvironmentVariableName,
-                e => e.Message,
-                e => e.HelpKeyword,
-                e => e.SenderName);
-        }
-
-        [Fact]
         public void RoundTripPropertyReassignmentEventArgs()
         {
             var args = new PropertyReassignmentEventArgs(
@@ -871,11 +919,12 @@ namespace Microsoft.Build.UnitTests
                 e => e.HelpKeyword,
                 e => e.SenderName);
         }
+
         [Fact]
         public void ReadingCorruptedStreamThrows()
         {
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             var args = new BuildStartedEventArgs(
@@ -892,8 +941,10 @@ namespace Microsoft.Build.UnitTests
                 memoryStream.SetLength(i); // pretend that the stream abruptly ends
                 memoryStream.Position = 0;
 
+#pragma warning disable CA2000 // The memory stream needs to keep the binary reader open.
                 var binaryReader = new BinaryReader(memoryStream);
-                using var buildEventArgsReader = new BuildEventArgsReader(binaryReader, BinaryLogger.FileFormatVersion);
+                var buildEventArgsReader = new BuildEventArgsReader(binaryReader, BinaryLogger.FileFormatVersion);
+#pragma warning restore CA2000 // The memory stream needs to keep the binary reader open.
 
                 Assert.Throws<EndOfStreamException>(() => buildEventArgsReader.Read());
             }
@@ -907,8 +958,8 @@ namespace Microsoft.Build.UnitTests
             BuildFinishedEventArgs finished = new("Message", "HelpKeyword", true);
 
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             buildEventArgsWriter.Write(error);
@@ -971,8 +1022,8 @@ namespace Microsoft.Build.UnitTests
             BuildFinishedEventArgs finished = new("Message", "HelpKeyword", true);
 
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             buildEventArgsWriter.Write(error);
@@ -1025,8 +1076,8 @@ namespace Microsoft.Build.UnitTests
             BuildFinishedEventArgs finished = new("Message", "HelpKeyword", true);
 
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             buildEventArgsWriter.Write(error);
@@ -1077,8 +1128,8 @@ namespace Microsoft.Build.UnitTests
             BuildFinishedEventArgs finished = new("Message", "HelpKeyword", true);
 
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             buildEventArgsWriter.Write(error);
@@ -1156,7 +1207,7 @@ namespace Microsoft.Build.UnitTests
             where T : BuildEventArgs
         {
             var memoryStream = new MemoryStream();
-            var binaryWriter = new BinaryWriter(memoryStream);
+            using var binaryWriter = new BinaryWriter(memoryStream);
             var buildEventArgsWriter = new BuildEventArgsWriter(binaryWriter);
 
             buildEventArgsWriter.Write(args);
@@ -1165,7 +1216,7 @@ namespace Microsoft.Build.UnitTests
 
             memoryStream.Position = 0;
 
-            var binaryReader = new BinaryReader(memoryStream);
+            using var binaryReader = new BinaryReader(memoryStream);
             using var buildEventArgsReader = new BuildEventArgsReader(binaryReader, BinaryLogger.FileFormatVersion);
             var deserializedArgs = (T)buildEventArgsReader.Read();
 
