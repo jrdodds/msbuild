@@ -71,6 +71,16 @@ namespace Microsoft.Build.Logging
         //   - GeneratedFileUsedEventArgs exposed for brief period of time (so let's continue with 20)
         // version 20:
         //   - TaskStartedEventArgs: Added TaskAssemblyLocation property
+        // version 21:
+        //   - TaskParameterEventArgs: Added ParameterName and PropertyName properties
+        // version 22:
+        //    - extend EnvironmentVariableRead with location where environment variable was used.
+        // version 23:
+        //    - new record kinds: BuildCheckMessageEvent, BuildCheckWarningEvent, BuildCheckErrorEvent,
+        //    BuildCheckTracingEvent, BuildCheckAcquisitionEvent, BuildSubmissionStartedEvent
+
+        // MAKE SURE YOU KEEP BuildEventArgsWriter AND StructuredLogViewer.BuildEventArgsWriter IN SYNC WITH THE CHANGES ABOVE.
+        // Both components must stay in sync to avoid issues with logging or event handling in the products.
 
         // This should be never changed.
         // The minimum version of the binary log reader that can read log of above version.
@@ -78,7 +88,7 @@ namespace Microsoft.Build.Logging
 
         // The current version of the binary log representation.
         // Changes with each update of the binary log format.
-        internal const int FileFormatVersion = 20;
+        internal const int FileFormatVersion = 23;
 
         // The minimum version of the binary log reader that can read log of above version.
         // This should be changed only when the binary log format is changed in a way that would prevent it from being
@@ -186,6 +196,7 @@ namespace Microsoft.Build.Logging
                 if (CollectProjectImports != ProjectImportsCollectionMode.None && replayEventSource == null)
                 {
                     projectImportsCollector = new ProjectImportsCollector(FilePath, CollectProjectImports == ProjectImportsCollectionMode.ZipFile);
+                    projectImportsCollector.FileIOExceptionEvent += EventSource_AnyEventRaised;
                 }
 
                 if (eventSource is IEventSource3 eventSource3)
@@ -300,7 +311,7 @@ namespace Microsoft.Build.Logging
         public void Shutdown()
         {
             Environment.SetEnvironmentVariable("MSBUILDTARGETOUTPUTLOGGING", _initialTargetOutputLogging);
-            Environment.SetEnvironmentVariable("MSBUILDLOGIMPORTS", _initialLogImports ? "1" : "");
+            Environment.SetEnvironmentVariable("MSBUILDLOGIMPORTS", _initialLogImports ? "1" : null);
             Environment.SetEnvironmentVariable("MSBUILDBINARYLOGGERENABLED", _initialIsBinaryLoggerEnabled);
 
             Traits.Instance.EscapeHatches.LogProjectImports = _initialLogImports;
@@ -318,6 +329,7 @@ namespace Microsoft.Build.Logging
                     projectImportsCollector.DeleteArchive();
                 }
 
+                projectImportsCollector.FileIOExceptionEvent -= EventSource_AnyEventRaised;
                 projectImportsCollector = null;
             }
 

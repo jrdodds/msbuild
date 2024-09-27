@@ -5,20 +5,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Experimental.BuildCheck.Infrastructure;
-using Microsoft.Build.Experimental.BuildCheck;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Framework.Telemetry;
 using Microsoft.Build.Shared;
 
 namespace Microsoft.Build.Experimental.BuildCheck.Acquisition;
 
 internal class BuildCheckAcquisitionModule : IBuildCheckAcquisitionModule
 {
-    private readonly ILoggingService _loggingService;
-
-    internal BuildCheckAcquisitionModule(ILoggingService loggingService) => _loggingService = loggingService;
-
 #if FEATURE_ASSEMBLYLOADCONTEXT
     /// <summary>
     /// AssemblyContextLoader used to load DLLs outside of msbuild.exe directory.
@@ -27,50 +22,56 @@ internal class BuildCheckAcquisitionModule : IBuildCheckAcquisitionModule
 #endif
 
     /// <summary>
-    /// Creates a list of factory delegates for building analyzer rules instances from a given assembly path.
+    /// Creates a list of factory delegates for building check rules instances from a given assembly path.
     /// </summary>
-    public List<BuildAnalyzerFactory> CreateBuildAnalyzerFactories(AnalyzerAcquisitionData analyzerAcquisitionData, BuildEventContext buildEventContext)
+    public List<CheckFactory> CreateCheckFactories(
+        CheckAcquisitionData checkAcquisitionData,
+        ICheckContext checkContext)
     {
-        var analyzersFactories = new List<BuildAnalyzerFactory>();
+        var checksFactories = new List<CheckFactory>();
 
         try
         {
             Assembly? assembly = null;
 #if FEATURE_ASSEMBLYLOADCONTEXT
-            assembly = s_coreClrAssemblyLoader.LoadFromPath(analyzerAcquisitionData.AssemblyPath);
+            assembly = s_coreClrAssemblyLoader.LoadFromPath(checkAcquisitionData.AssemblyPath);
 #else
-            assembly = Assembly.LoadFrom(analyzerAcquisitionData.AssemblyPath);
+            assembly = Assembly.LoadFrom(checkAcquisitionData.AssemblyPath);
 #endif
 
-            IEnumerable<Type> analyzerTypes = assembly.GetExportedTypes().Where(t => typeof(BuildAnalyzer).IsAssignableFrom(t));
+            IList<Type> availableTypes = assembly.GetExportedTypes();
+            IList<Type> checkTypes = availableTypes.Where(t => typeof(Check).IsAssignableFrom(t)).ToArray();
 
-            foreach (Type analyzerType in analyzerTypes)
+            foreach (Type checkCandidate in checkTypes)
             {
-                if (Activator.CreateInstance(analyzerType) is BuildAnalyzer instance)
-                {
-                    analyzersFactories.Add(() => instance);
-                }
-                else
-                {
-                    throw new InvalidOperationException($"Failed to create an instance of type {analyzerType.FullName} as BuildAnalyzer.");
-                }
+                checksFactories.Add(() => (Check)Activator.CreateInstance(checkCandidate)!);
+                checkContext.DispatchAsComment(MessageImportance.Normal, "CustomCheckRegistered", checkCandidate.Name, checkCandidate.Assembly);
+            }
+
+            if (availableTypes.Count != checkTypes.Count)
+            {
+                availableTypes.Except(checkTypes).ToList()
+                    .ForEach(t => checkContext.DispatchAsComment(MessageImportance.Normal, "CustomCheckBaseTypeNotAssignable", t.Name, t.Assembly));
             }
         }
-        catch (ReflectionTypeLoadException ex)
+        catch (ReflectionTypeLoadException ex) when (ex.LoaderExceptions.Length != 0)
         {
-            if (ex.LoaderExceptions.Length != 0)
+            foreach (Exception? unrolledEx in ex.LoaderExceptions.Where(e => e != null).Prepend(ex))
             {
-                foreach (Exception? loaderException in ex.LoaderExceptions)
-                {
-                    _loggingService.LogComment(buildEventContext, MessageImportance.Normal, "CustomAnalyzerFailedRuleLoading", loaderException?.Message);
-                }
+                ReportLoadingError(unrolledEx!);
             }
         }
         catch (Exception ex)
         {
-            _loggingService.LogComment(buildEventContext, MessageImportance.Normal, "CustomAnalyzerFailedRuleLoading", ex?.Message);
+            ReportLoadingError(ex);
         }
 
-        return analyzersFactories;
+        return checksFactories;
+
+        void ReportLoadingError(Exception ex)
+        {
+            checkContext.DispatchAsComment(MessageImportance.Normal, "CustomCheckFailedRuleLoading", ex.Message);
+            checkContext.DispatchFailedAcquisitionTelemetry(System.IO.Path.GetFileName(checkAcquisitionData.AssemblyPath), ex);
+        }
     }
 }
