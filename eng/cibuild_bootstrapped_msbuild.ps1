@@ -84,9 +84,10 @@ try {
   }
   else
   {
-    $buildToolPath = Join-Path $bootstrapRoot "core\dotnet.exe"
-    # The version must be consistent with BootstrapSdkVersion
-    $buildToolCommand = Join-Path $bootstrapRoot "core\sdk\9.0.100-rc.2.24474.11\MSBuild.dll"
+    $buildToolPath = "$bootstrapRoot\core\dotnet.exe"
+    $propsFile = Join-Path $PSScriptRoot "Versions.props"
+    $bootstrapSdkVersion = ([xml](Get-Content $propsFile)).SelectSingleNode("//PropertyGroup/BootstrapSdkVersion").InnerText
+    $buildToolCommand = "$bootstrapRoot\core\sdk\$bootstrapSdkVersion\MSBuild.dll"
     $buildToolFramework = "net9.0"
   }
 
