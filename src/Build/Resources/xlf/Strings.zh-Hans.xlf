@@ -287,6 +287,11 @@
         <target state="translated">找不到指定的自定义检查程序集: {0}。请检查它是否存在。</target>
         <note>The message is emitted when the custom check assembly can not be found.</note>
       </trans-unit>
+      <trans-unit id="CouldNotDifferentiateBetweenCompatibleMethods">
+        <source>Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</source>
+        <target state="new">Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CustomCheckBaseTypeNotAssignable">
         <source>Failed to load the custom check type: '{0}' from the assembly: '{1}'. Make sure it inherits the Microsoft.Build.Experimental.BuildCheck.Check base class. If it is not intended to be a custom check, than it should not be exposed. More info: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</source>
         <target state="translated">未能从程序集“{1}”加载自定义检查类型“{0}”。请确保它继承 Microsoft.Build.Experimental.BuildCheck.Check 基类。如果不打算将其作为自定义检查，则不应将其公开。详细信息: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</target>
@@ -1574,8 +1579,8 @@ Errors: {3}</source>
         <note />
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeeded">
-        <source>MSB4075: The project file "{0}" must be opened in the Visual Studio IDE and converted to the latest version before it can be built by MSBuild.</source>
-        <target state="translated">MSB4075: 必须在 Visual Studio IDE 中打开项目文件“{0}”，并将其转换为最新版本，然后才能使用 MSBuild 生成该项目文件。</target>
+        <source>MSB4075: The project file "{0}" must be opened in a version of Visual Studio IDE that supports it and converted to the latest version before it can be built by MSBuild. More info: https://aka.ms/DeprecatedProjectConversion</source>
+        <target state="translated">MSB4075: 项目文件“{0}”必须在支持它的 Visual Studio IDE 版本中打开并转换为最新版本，然后才能使用 MSBuild 生成该项目文件。详细信息: https://aka.ms/DeprecatedProjectConversion</target>
         <note>{StrBegin="MSB4075: "}</note>
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeededToVcxProj">

@@ -287,6 +287,11 @@
         <target state="translated">Nepodařilo se najít zadané sestavení vlastní kontroly: {0}. Zkontrolujte prosím, jestli existuje.</target>
         <note>The message is emitted when the custom check assembly can not be found.</note>
       </trans-unit>
+      <trans-unit id="CouldNotDifferentiateBetweenCompatibleMethods">
+        <source>Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</source>
+        <target state="new">Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CustomCheckBaseTypeNotAssignable">
         <source>Failed to load the custom check type: '{0}' from the assembly: '{1}'. Make sure it inherits the Microsoft.Build.Experimental.BuildCheck.Check base class. If it is not intended to be a custom check, than it should not be exposed. More info: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</source>
         <target state="translated">Nepodařilo se načíst typ vlastní kontroly: {0} ze sestavení: {1}. Ujistěte se, že dědí základní třídu Microsoft.Build.Experimental.BuildCheck.Check. Pokud se nemá jednat o vlastní kontrolu, neměl by být exponovaný. Další informace: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</target>
@@ -1574,8 +1579,8 @@ Chyby: {3}</target>
         <note />
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeeded">
-        <source>MSB4075: The project file "{0}" must be opened in the Visual Studio IDE and converted to the latest version before it can be built by MSBuild.</source>
-        <target state="translated">MSB4075: Před sestavením pomocí nástroje MSBuild musí být soubor projektu {0} otevřen v prostředí Visual Studio IDE a převeden na nejnovější verzi.</target>
+        <source>MSB4075: The project file "{0}" must be opened in a version of Visual Studio IDE that supports it and converted to the latest version before it can be built by MSBuild. More info: https://aka.ms/DeprecatedProjectConversion</source>
+        <target state="translated">MSB4075: Soubor projektu {0} musí být otevřen ve verzi integrovaného vývojového prostředí (IDE) sady Visual Studio, která ho podporuje, a převeden na nejnovější verzi, aby ho bylo možné sestavit pomocí nástroje MSBuild. Další informace: https://aka.ms/DeprecatedProjectConversion</target>
         <note>{StrBegin="MSB4075: "}</note>
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeededToVcxProj">

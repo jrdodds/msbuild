@@ -287,6 +287,11 @@
         <target state="translated">Не удалось найти указанную сборку настраиваемой проверки "{0}". Убедитесь, что она существует.</target>
         <note>The message is emitted when the custom check assembly can not be found.</note>
       </trans-unit>
+      <trans-unit id="CouldNotDifferentiateBetweenCompatibleMethods">
+        <source>Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</source>
+        <target state="new">Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CustomCheckBaseTypeNotAssignable">
         <source>Failed to load the custom check type: '{0}' from the assembly: '{1}'. Make sure it inherits the Microsoft.Build.Experimental.BuildCheck.Check base class. If it is not intended to be a custom check, than it should not be exposed. More info: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</source>
         <target state="translated">Не удалось загрузить тип настраиваемой проверки "{0}" из сборки "{1}". Убедитесь, что он наследует базовый класс Microsoft.Build.Experimental.BuildCheck.Check. Если он не предназначен для настраиваемой проверки, его не следует предоставлять. Подробнее: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</target>
@@ -1574,8 +1579,8 @@ Errors: {3}</source>
         <note />
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeeded">
-        <source>MSB4075: The project file "{0}" must be opened in the Visual Studio IDE and converted to the latest version before it can be built by MSBuild.</source>
-        <target state="translated">MSB4075: файл проекта "{0}" должен быть открыт в среде Visual Studio и преобразован в последнюю версию, прежде чем программа MSBuild сможет построить этот проект.</target>
+        <source>MSB4075: The project file "{0}" must be opened in a version of Visual Studio IDE that supports it and converted to the latest version before it can be built by MSBuild. More info: https://aka.ms/DeprecatedProjectConversion</source>
+        <target state="translated">MSB4075: для сборки файла проекта "{0}" в MSBuild необходимо открыть его в интегрированной среде разработки Visual Studio, которая его поддерживает, и преобразовать в последнюю версию. Дополнительные сведения: https://aka.ms/DeprecatedProjectConversion.</target>
         <note>{StrBegin="MSB4075: "}</note>
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeededToVcxProj">

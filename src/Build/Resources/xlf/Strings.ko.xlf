@@ -287,6 +287,11 @@
         <target state="translated">지정한 사용자 지정 검사 어셈블리를 찾지 못했습니다. '{0}'. 있는지 확인하세요.</target>
         <note>The message is emitted when the custom check assembly can not be found.</note>
       </trans-unit>
+      <trans-unit id="CouldNotDifferentiateBetweenCompatibleMethods">
+        <source>Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</source>
+        <target state="new">Found multiple overloads for method "{0}" with {1} parameter(s). That is currently not supported.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CustomCheckBaseTypeNotAssignable">
         <source>Failed to load the custom check type: '{0}' from the assembly: '{1}'. Make sure it inherits the Microsoft.Build.Experimental.BuildCheck.Check base class. If it is not intended to be a custom check, than it should not be exposed. More info: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</source>
         <target state="translated">어셈블리에서 사용자 지정 검사 유형 '{0}'을(를) 로드하지 못했습니다. '{1}'. Microsoft.Build.Experimental.BuildCheck.Check 기본 클래스를 상속해야 합니다. 사용자 지정 검사가 아닌 경우 노출되지 않아야 합니다. 추가 정보: https://github.com/dotnet/msbuild/blob/main/documentation/specs/proposed/BuildCheck-Architecture.md#acquisition</target>
@@ -1574,8 +1579,8 @@ Errors: {3}</source>
         <note />
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeeded">
-        <source>MSB4075: The project file "{0}" must be opened in the Visual Studio IDE and converted to the latest version before it can be built by MSBuild.</source>
-        <target state="translated">MSB4075: 프로젝트 파일 "{0}"을(를) MSBuild로 빌드하려면 파일을 Visual Studio IDE에서 열어 최신 버전으로 변환해야 합니다.</target>
+        <source>MSB4075: The project file "{0}" must be opened in a version of Visual Studio IDE that supports it and converted to the latest version before it can be built by MSBuild. More info: https://aka.ms/DeprecatedProjectConversion</source>
+        <target state="translated">MSB4075: 프로젝트 파일 "{0}"을(를) MSBuild로 빌드하려면 이를 지원하는 Visual Studio IDE 버전에서 열고 최신 버전으로 변환해야 합니다. 자세한 정보: https://aka.ms/DeprecatedProjectConversion</target>
         <note>{StrBegin="MSB4075: "}</note>
       </trans-unit>
       <trans-unit id="ProjectUpgradeNeededToVcxProj">
