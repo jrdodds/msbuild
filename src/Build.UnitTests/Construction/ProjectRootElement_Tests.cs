@@ -5,6 +5,7 @@
 using System;
 using System.Text;
 using Microsoft.Build.Construction;
+using Shouldly;
 using Xunit;
 
 #nullable disable
@@ -115,6 +116,16 @@ bar", false)]
                 Assert.Equal(string.Empty, children[0].ChildNodes[0].Value);
                 Assert.Equal(string.Empty, children[0].ChildNodes[1].Value);
             }
+        }
+
+        [Theory]
+        [InlineData(@"<Project />", 0)]
+        [InlineData(@"<Project><Sdk Name=""MSBuildUnitTestSdk"" /></Project>", 1)]
+        public void ProjectSdkElements(string project, int expectedCount)
+        {
+            using ProjectRootElementFromString projectRootElementFromString = new(project);
+            ProjectRootElement projectRootElement = projectRootElementFromString.Project;
+            projectRootElement.SdkElements.Count.ShouldBe(expectedCount);
         }
     }
 }

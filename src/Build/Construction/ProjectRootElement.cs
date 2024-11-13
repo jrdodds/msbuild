@@ -328,10 +328,18 @@ namespace Microsoft.Build.Construction
         public ICollection<ProjectPropertyGroupElement> PropertyGroups => GetChildrenOfType<ProjectPropertyGroupElement>();
 
         /// <summary>
-        /// Geta read-only collection of the child properties, if any, in all property groups anywhere in the project file.
+        /// Get a read-only collection of the child properties, if any, in all property groups anywhere in the project file.
         /// Not restricted to root property groups: traverses through Choose elements.
         /// </summary>
         public ICollection<ProjectPropertyElement> Properties => new ReadOnlyCollection<ProjectPropertyElement>(GetAllChildrenOfType<ProjectPropertyElement>());
+
+        /// <summary>
+        /// Get a read-only collection of the child Sdk elements, if any.
+        /// </summary>
+        /// <remarks>
+        /// The name is inconsistent to be more distinct from the Sdk property.
+        /// </remarks>
+        public ICollection<ProjectSdkElement> SdkElements => GetChildrenOfType<ProjectSdkElement>();
 
         /// <summary>
         /// Get a read-only collection of the child targets
