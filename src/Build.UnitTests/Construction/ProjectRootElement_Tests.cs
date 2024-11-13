@@ -12,7 +12,7 @@ using Xunit;
 namespace Microsoft.Build.UnitTests.Construction
 {
     /// <summary>
-    /// Tests for the ElementLocation class
+    /// Tests for the ProjectRootElement class
     /// </summary>
     public class ProjectRootElement_Tests
     {
