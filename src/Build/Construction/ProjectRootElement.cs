@@ -499,8 +499,8 @@ namespace Microsoft.Build.Construction
 
         /// <summary>
         /// Gets or sets a semicolon delimited list of software development kits (SDK) that the project uses.
-        /// If  a value is specified, an Sdk.props is simplicity imported at the top of the project and an
-        /// Sdk.targets is simplicity imported at the bottom from the specified SDK.
+        /// If  a value is specified, an Sdk.props is implicitly imported at the top of the project and an
+        /// Sdk.targets is implicitly imported at the bottom from the specified SDK.
         /// If the value is null or empty, removes the attribute.
         /// </summary>
         public string Sdk
