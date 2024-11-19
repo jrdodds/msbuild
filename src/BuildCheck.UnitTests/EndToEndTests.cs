@@ -234,7 +234,7 @@ public class EndToEndTests : IDisposable
         // The conflicting outputs warning appears - but only if check was requested
         if (checkRequested)
         {
-            output.ShouldContain("BC0101");
+            output.ShouldContain(FormatExpectedDiagOutput("BC0101", BC0101Severity));
             output.ShouldContain("BC0102");
             output.ShouldContain("BC0103");
         }
@@ -243,6 +243,12 @@ public class EndToEndTests : IDisposable
             output.ShouldNotContain("BC0101");
             output.ShouldNotContain("BC0102");
             output.ShouldNotContain("BC0103");
+        }
+
+        string FormatExpectedDiagOutput(string code, string severity)
+        {
+            string msbuildSeverity = severity.Equals("suggestion") ? "message" : severity;
+            return $"{msbuildSeverity} {code}: https://aka.ms/buildcheck/codes#{code}";
         }
     }
 
@@ -487,9 +493,9 @@ public class EndToEndTests : IDisposable
         }
     }
 
-    [Theory(Skip = "https://github.com/dotnet/msbuild/issues/10702")]
-    [InlineData("CheckCandidate", "X01234", "error", "error X01234")]
-    [InlineData("CheckCandidateWithMultipleChecksInjected", "X01234", "warning", "warning X01234")]
+    [Theory]
+    [InlineData("CheckCandidate", "X01234", "error", "error X01234: http://samplelink.com/X01234")]
+    [InlineData("CheckCandidateWithMultipleChecksInjected", "X01234", "warning", "warning X01234: http://samplelink.com/X01234")]
     public void CustomCheckTest_WithEditorConfig(string checkCandidate, string ruleId, string severity, string expectedMessage)
     {
         using (var env = TestEnvironment.Create())
