@@ -37,6 +37,14 @@
         <target state="translated">Houve um problema ao analisar o atributo newVersion. {0}</target>
         <note />
       </trans-unit>
+      <trans-unit id="AssignCulture.CultureOverwritten">
+        <source>MSB3002: Explicitly set culture "{0}" for item "{1}" was overwritten with inferred culture "{2}", because 'RespectAlreadyAssignedItemCulture' property was not set.</source>
+        <target state="translated">MSB3002: a cultura "{0}" explicitamente definida para o item "{1}" foi substituída pela cultura inferida "{2}", porque a propriedade "RespectAlreadyAssignedItemCulture" não foi definida.</target>
+        <note>
+	{StrBegin="MSB3002: "}
+	'RespectAlreadyAssignedItemCulture' should not be translated
+	</note>
+      </trans-unit>
       <trans-unit id="AssignProjectConfiguration.IllegalMappingString">
         <source>The platform mapping "{0}" in the platform mapping list "{1}" is malformed.  Please only pass in a semicolon-delimited list of constant string values separated by "=", e.g., "foo=bar;foo2=bar2".</source>
         <target state="translated">O mapeamento de plataforma "{0}" da lista de mapeamentos de plataforma "{1}" está malformado.  Passe apenas uma lista delimitada por ponto e vírgula de valores de cadeia de caracteres constantes separados por "=", por exemplo, "foo=bar;foo2=bar2".</target>
@@ -130,6 +138,11 @@
         <source>MSB3654: Delay signing requires that at least a public key be specified.  Please either supply a public key using the KeyFile or KeyContainer properties, or disable delay signing.</source>
         <target state="translated">MSB3654: A assinatura atrasada requer que pelo menos uma chave pública seja especificada.  Forneça uma chave pública usando as propriedades KeyFile ou KeyContainer ou desabilite a assinatura atrasada.</target>
         <note>{StrBegin="MSB3654: "}</note>
+      </trans-unit>
+      <trans-unit id="CodeTaskFactory.AttributeEmptyWithTaskElement">
+        <source>MSB3752: The "{0}" attribute of the &lt;{1}&gt; element in the task "{2}" has been set but is empty. Make sure the attribute has a proper value.</source>
+        <target state="translated">MSB3752: o atributo "{0}" do elemento &lt;{1}&gt; na tarefa "{2}" foi definido, mas está vazio. Verifique se o atributo tem um valor adequado.</target>
+        <note>{StrBegin="MSB3752: "}</note>
       </trans-unit>
       <trans-unit id="CombineTargetFrameworkInfoProperties.NotNullAndEmptyRootElementName">
         <source>MSB3991: '{0}' is not set or empty. When {1} is false, make sure to set a non-empty value for '{0}'.</source>
